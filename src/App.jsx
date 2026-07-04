@@ -1120,12 +1120,16 @@ function LiveMap({ fleet, clock, onSelect }) {
             {running.map((t) => (
               <button
                 key={t.id}
-                className="train-marker"
-                style={{ left: `${t.live.pct}%`, borderColor: SIGNAL[t.status].color, color: SIGNAL[t.status].color }}
+                className={`train-marker dir-${t.live.dwellAt ? "dwell" : t.live.direction.toLowerCase()}`}
+                style={{ left: `${t.live.pct}%`, "--tcolor": SIGNAL[t.status].color }}
                 onClick={() => onSelect(t.id)}
                 title={`${t.name} · ${t.live.direction} · next: ${t.live.nextStation}`}
               >
-                {String(t.number).padStart(2, "0")}
+                <span className="train-marker-trail" />
+                <span className="train-marker-body">
+                  <Train size={12} strokeWidth={2.4} />
+                </span>
+                <span className="train-marker-label">{t.name}</span>
               </button>
             ))}
           </div>
@@ -1133,6 +1137,12 @@ function LiveMap({ fleet, clock, onSelect }) {
         <div className="route-ref-note">
           Positions are computed live from each train's schedule cycle (one-way run + turnaround), not fetched from a
           KMRL live-GPS feed — no such public feed exists. Trains not in ACTIVE service show at Muttom Depot.
+        </div>
+        <div className="route-ref-note" style={{ marginTop: 4 }}>
+          Real-world reference: KMRL's Blue Line fleet is 25 trainsets, of which typically only <strong>7–8 run on
+          the line at the same time</strong> on a normal day — the rest are in standby, cleaning, or maintenance at
+          Muttom Depot at any given moment. This demo intentionally lets the HOD approve any number ACTIVE so you can
+          exercise the full workflow; it doesn't cap concurrent trains at that real-world figure.
         </div>
       </section>
 

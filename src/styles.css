@@ -443,9 +443,19 @@ body { font-size: 13px; }
 }
 
 /* ---------------- LIVE OPS MAP ---------------- */
-.line-track-wrap { padding: 30px 10px 46px; }
+.schematic {
+  background-image:
+    linear-gradient(rgba(63,200,255,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(63,200,255,0.06) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 0%, rgba(63,200,255,0.05), transparent 65%),
+    #0B1410;
+  background-size: 22px 22px, 22px 22px, 100% 100%, 100%;
+}
+.line-track-wrap { padding: 34px 10px 50px; }
 .line-track {
-  position: relative; height: 4px; background: #1F3B30; border-radius: 2px; margin: 0 30px;
+  position: relative; height: 4px; border-radius: 2px; margin: 0 30px;
+  background: linear-gradient(90deg, #1F3B30, #234a3a, #1F3B30);
+  box-shadow: 0 0 8px rgba(63,200,255,0.12);
 }
 .line-endpoint {
   position: absolute; top: -22px; font-size: 9px; letter-spacing: 0.6px; color: #5C7A6C; font-weight: 700;
@@ -458,12 +468,40 @@ body { font-size: 13px; }
 .depot-marker { position: absolute; top: 10px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 3px; }
 .depot-dot { width: 8px; height: 8px; border-radius: 2px; background: #5C7A6C; }
 .depot-label { font-size: 8px; color: #5C7A6C; letter-spacing: 0.5px; }
+
+/* Glowing train marker — icon + name label + directional light trail,
+   styled after a night-time HUD look rather than a plain numbered dot. */
 .train-marker {
-  position: absolute; top: -13px; transform: translateX(-50%);
-  width: 26px; height: 26px; border-radius: 50%; border: 2px solid;
-  background: #0B1410; font-size: 9.5px; font-weight: 700; cursor: pointer;
+  position: absolute; top: -19px; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: transparent; border: none; cursor: pointer; padding: 0;
+  transition: left 0.9s linear; z-index: 3;
+}
+.train-marker-body {
+  position: relative; width: 24px; height: 24px; border-radius: 7px;
+  border: 1.5px solid var(--tcolor);
+  background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.18), #0B1410 72%);
+  color: var(--tcolor);
   display: flex; align-items: center; justify-content: center;
-  transition: left 0.9s linear;
+  box-shadow: 0 0 6px var(--tcolor), 0 0 14px color-mix(in srgb, var(--tcolor) 55%, transparent);
+  animation: trainPulse 2.2s ease-in-out infinite;
+}
+.train-marker-label {
+  font-size: 8px; font-weight: 700; letter-spacing: 0.3px;
+  color: var(--tcolor); text-shadow: 0 0 6px color-mix(in srgb, var(--tcolor) 70%, transparent);
+  white-space: nowrap; line-height: 1;
+}
+.train-marker-trail {
+  position: absolute; top: 12px; height: 2px; width: 30px;
+  background: linear-gradient(90deg, transparent, var(--tcolor));
+  filter: blur(0.5px); opacity: 0.65; pointer-events: none; border-radius: 2px;
+}
+.train-marker.dir-up .train-marker-trail { right: 100%; background: linear-gradient(270deg, transparent, var(--tcolor)); }
+.train-marker.dir-down .train-marker-trail { left: 100%; background: linear-gradient(90deg, transparent, var(--tcolor)); }
+.train-marker.dir-dwell .train-marker-trail { display: none; }
+@keyframes trainPulse {
+  0%, 100% { box-shadow: 0 0 5px var(--tcolor), 0 0 10px color-mix(in srgb, var(--tcolor) 45%, transparent); }
+  50% { box-shadow: 0 0 9px var(--tcolor), 0 0 20px color-mix(in srgb, var(--tcolor) 55%, transparent); }
 }
 .live-list-cols { display: flex; gap: 16px; flex-wrap: wrap; }
 .live-head, .live-row { grid-template-columns: 1fr 1.3fr 0.4fr 1.3fr 0.9fr !important; }
