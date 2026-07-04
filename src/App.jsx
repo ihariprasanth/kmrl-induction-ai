@@ -5,8 +5,10 @@ import {
 import {
   Train, LogOut, Search, AlertTriangle, User, Lock, ChevronRight, X,
   ShieldCheck, Wrench, Clock3, CheckCircle2, Radio, Zap, Battery, Wind,
-  Gauge, History, ClipboardList, Circle as CircleIcon,
+  Gauge, History, ClipboardList, Circle as CircleIcon, MessageSquareWarning,
+  CalendarClock, Send,
 } from "lucide-react";
+import { supabase } from "./lib/supabaseClient";
 
 /* =========================================================================
    FLEET DATA
@@ -168,18 +170,147 @@ const COMPLAINT_ISSUES = [
   "TTR / staff behaviour complaint",
   "Other",
 ];
-const COMPLAINTS_KEY = "kmrl_complaints_v1";
+/* =========================================================================
+   SUPABASE — PASSENGER QUERIES ("complaints" table)
+   Replaces the old localStorage-only version so a query raised by a
+   passenger scanning the QR on the actual train shows up live on every
+   HOD / Operator screen, not just the same browser. Run supabase/schema.sql
+   in your Supabase project once before using this.
+========================================================================= */
+function complaintFromRow(r) {
+  return {
+    id: r.id,
+    trainId: r.train_id,
+    trainName: r.train_name,
+    compartment: r.compartment,
+    issue: r.issue,
+    description: r.description,
+    status: r.status,
+    reviewedBy: r.reviewed_by,
+    expectedCompletionDate: r.expected_completion_date,
+    sentToServiceAt: r.sent_to_service_at,
+    resolvedBy: r.resolved_by,
+    resolvedTs: r.resolved_ts,
+    ts: r.ts,
+  };
+}
 
-function loadComplaints() {
-  try {
-    const raw = localStorage.getItem(COMPLAINTS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
+async function fetchComplaints() {
+  const { data, error } = await supabase.from("complaints").select("*").order("ts", { ascending: false });
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error("[complaints] fetch failed — did you run supabase/schema.sql?", error.message);
     return [];
   }
+  return (data || []).map(complaintFromRow);
 }
-function saveComplaints(list) {
-  try { localStorage.setItem(COMPLAINTS_KEY, JSON.stringify(list)); } catch { /* storage unavailable */ }
+
+async function insertComplaint({ trainId, trainName, compartment, issue, description }) {
+  const { data, error } = await supabase
+    .from("complaints")
+    .insert({ train_id: trainId, train_name: trainName, compartment, issue, description })
+    .select()
+    .single();
+  if (error) throw error;
+  return complaintFromRow(data);
+}
+
+/* patch uses camelCase keys mirroring complaintFromRow() output */
+async function updateComplaint(id, patch) {
+  const row = {};
+  if ("status" in patch) row.status = patch.status;
+  if ("reviewedBy" in patch) row.reviewed_by = patch.reviewedBy;
+  if ("expectedCompletionDate" in patch) row.expected_completion_date = patch.expectedCompletionDate;
+  if ("sentToServiceAt" in patch) row.sent_to_service_at = patch.sentToServiceAt;
+  if ("resolvedBy" in patch) row.resolved_by = patch.resolvedBy;
+  if ("resolvedTs" in patch) row.resolved_ts = patch.resolvedTs;
+  const { error } = await supabase.from("complaints").update(row).eq("id", id);
+  if (error) throw error;
+}
+
+/* =========================================================================
+   SUPABASE — TRAINS table row <-> app's camelCase train object
+========================================================================= */
+function trainFromRow(r) {
+  return {
+    id: r.id,
+    number: r.number,
+    name: r.name,
+    bay: r.bay,
+    mileageKm: r.mileage_km,
+    mileageSinceService: r.mileage_since_service,
+    mileageRatePerHour: r.mileage_rate_per_hour,
+    certDaysLeft: r.cert_days_left,
+    jobCardOpen: r.job_card_open,
+    brandingHoursPending: r.branding_hours_pending,
+    lastCleanedDaysAgo: r.last_cleaned_days_ago,
+    checksComplete: r.checks_complete,
+    approved: r.approved,
+    tractionMotorHealth: r.traction_motor_health,
+    brakePadWear: r.brake_pad_wear,
+    batteryHealth: r.battery_health,
+    hvacStatus: r.hvac_status,
+    energyConsumptionKwhKm: Number(r.energy_consumption_kwh_km),
+    regenBrakingEfficiency: r.regen_braking_efficiency,
+    lastServiceDate: r.last_service_date,
+    lastServiceType: r.last_service_type,
+    lastServiceNotes: r.last_service_notes,
+    lastServiceApprovedBy: r.last_service_approved_by,
+    serviceHistory: r.service_history || [],
+    assignedOperator: r.assigned_operator,
+  };
+}
+
+async function fetchFleetFromSupabase() {
+  const { data, error } = await supabase.from("trains").select("*").order("number", { ascending: true });
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error("[trains] fetch failed — did you run supabase/schema.sql?", error.message);
+    return null;
+  }
+  return (data || []).map(trainFromRow);
+}
+
+/* patch uses camelCase keys mirroring trainFromRow() output */
+function trainPatchToRow(patch) {
+  const map = {
+    mileageKm: "mileage_km",
+    mileageSinceService: "mileage_since_service",
+    mileageRatePerHour: "mileage_rate_per_hour",
+    certDaysLeft: "cert_days_left",
+    jobCardOpen: "job_card_open",
+    brandingHoursPending: "branding_hours_pending",
+    lastCleanedDaysAgo: "last_cleaned_days_ago",
+    checksComplete: "checks_complete",
+    approved: "approved",
+    tractionMotorHealth: "traction_motor_health",
+    brakePadWear: "brake_pad_wear",
+    batteryHealth: "battery_health",
+    hvacStatus: "hvac_status",
+    energyConsumptionKwhKm: "energy_consumption_kwh_km",
+    regenBrakingEfficiency: "regen_braking_efficiency",
+    lastServiceDate: "last_service_date",
+    lastServiceType: "last_service_type",
+    lastServiceNotes: "last_service_notes",
+    lastServiceApprovedBy: "last_service_approved_by",
+    serviceHistory: "service_history",
+    assignedOperator: "assigned_operator",
+  };
+  const row = {};
+  Object.entries(patch).forEach(([k, v]) => {
+    if (map[k]) row[map[k]] = v;
+  });
+  return row;
+}
+
+async function persistTrain(id, patch) {
+  const row = trainPatchToRow(patch);
+  if (Object.keys(row).length === 0) return;
+  const { error } = await supabase.from("trains").update(row).eq("id", id);
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error(`[trains] failed to save ${id}:`, error.message);
+  }
 }
 
 /* Builds the passenger complaint-portal link + scannable QR image for a train */
@@ -305,24 +436,29 @@ function ComplaintPortal({ presetTrainId }) {
   const [issue, setIssue] = useState(COMPLAINT_ISSUES[0]);
   const [description, setDescription] = useState("");
   const [submitted, setSubmitted] = useState(null);
+  const [sending, setSending] = useState(false);
+  const [submitErr, setSubmitErr] = useState("");
 
   const train = TRAIN_ID_LIST.find((t) => t.id === trainId);
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    const complaint = {
-      id: `CMP-${Date.now().toString(36).toUpperCase()}`,
-      ts: new Date().toISOString(),
-      trainId,
-      trainName: train?.name || trainId,
-      compartment,
-      issue,
-      description: description.trim(),
-      status: "OPEN",
-    };
-    const list = loadComplaints();
-    saveComplaints([complaint, ...list]);
-    setSubmitted(complaint);
+    setSubmitErr("");
+    setSending(true);
+    try {
+      const complaint = await insertComplaint({
+        trainId,
+        trainName: train?.name || trainId,
+        compartment,
+        issue,
+        description: description.trim(),
+      });
+      setSubmitted(complaint);
+    } catch (err) {
+      setSubmitErr("Could not submit — check connection and try again.");
+    } finally {
+      setSending(false);
+    }
   };
 
   const submitAnother = () => {
@@ -416,8 +552,10 @@ function ComplaintPortal({ presetTrainId }) {
             />
           </div>
 
-          <button className="term-submit" type="submit">
-            &gt; SUBMIT COMPLAINT <ChevronRight size={15} />
+          {submitErr && <div className="term-err"><AlertTriangle size={13} /> {submitErr}</div>}
+
+          <button className="term-submit" type="submit" disabled={sending}>
+            &gt; {sending ? "SUBMITTING..." : "SUBMIT COMPLAINT"} <ChevronRight size={15} />
           </button>
         </form>
         <div className="login-footnote">THIS ISSUE WILL BE PULLED INTO THE TRAIN'S NEXT SERVICE CHECKLIST</div>
@@ -434,6 +572,7 @@ function Login({ onLogin }) {
   const [uname, setUname] = useState("");
   const [pwd, setPwd] = useState("");
   const [err, setErr] = useState("");
+  const [checking, setChecking] = useState(false);
   const [clock, setClock] = useState(new Date());
 
   useEffect(() => {
@@ -441,13 +580,31 @@ function Login({ onLogin }) {
     return () => clearInterval(id);
   }, []);
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     if (!uname.trim() || !pwd.trim()) {
       setErr("CREDENTIALS REQUIRED");
       return;
     }
-    onLogin({ role, name: uname.trim() });
+    setErr("");
+    setChecking(true);
+    const { data, error } = await supabase
+      .from("app_users")
+      .select("*")
+      .eq("username", uname.trim())
+      .eq("password", pwd)
+      .eq("role", role)
+      .maybeSingle();
+    setChecking(false);
+    if (error) {
+      setErr("LOGIN CHECK FAILED — CHECK SUPABASE CONNECTION");
+      return;
+    }
+    if (!data) {
+      setErr("INVALID USERNAME / PASSWORD FOR THIS ROLE");
+      return;
+    }
+    onLogin({ role: data.role, name: data.name });
   };
 
   return (
@@ -487,8 +644,8 @@ function Login({ onLogin }) {
             <input type="password" placeholder="ACCESS CODE" value={pwd} onChange={(e) => setPwd(e.target.value)} />
           </div>
           {err && <div className="term-err"><AlertTriangle size={13} /> {err}</div>}
-          <button className="term-submit" type="submit">
-            &gt; AUTHENTICATE <ChevronRight size={15} />
+          <button className="term-submit" type="submit" disabled={checking}>
+            &gt; {checking ? "CHECKING..." : "AUTHENTICATE"} <ChevronRight size={15} />
           </button>
         </form>
 
@@ -504,7 +661,7 @@ function Login({ onLogin }) {
           </div>
         </div>
 
-        <div className="login-footnote">DEMO SYSTEM — ANY ID/CODE PAIR GRANTS ACCESS</div>
+        <div className="login-footnote">CREDENTIALS CHECKED AGAINST SUPABASE app_users TABLE</div>
       </div>
     </div>
   );
@@ -846,6 +1003,140 @@ function Drawer({ train, isHod, approverName, complaints, onChange, onApprove, o
         />
       )}
     </div>
+  );
+}
+
+/* =========================================================================
+   PASSENGER QUERIES — dedicated dashboard tab.
+   Every query a passenger raises by scanning the in-train QR code lands
+   here across the whole fleet. HOD reviews each one, assigns an expected
+   completion date, and sends it to Service; status then tracks it through
+   to resolution. Backed live by the Supabase `complaints` table.
+========================================================================= */
+const PQ_STATUS_META = {
+  OPEN:             { label: "OPEN — NEW", color: "#FF4D4D" },
+  UNDER_REVIEW:     { label: "UNDER HOD REVIEW", color: "#FFC93B" },
+  SENT_TO_SERVICE:  { label: "SENT TO SERVICE", color: "#3FC8FF" },
+  RESOLVED:         { label: "RESOLVED", color: "#39E68B" },
+};
+const PQ_STATUS_ORDER = ["OPEN", "UNDER_REVIEW", "SENT_TO_SERVICE", "RESOLVED"];
+
+function PassengerQueryRow({ c, isHod, onUpdate }) {
+  const [date, setDate] = useState(c.expectedCompletionDate || "");
+  const [saving, setSaving] = useState(false);
+  const meta = PQ_STATUS_META[c.status] || PQ_STATUS_META.OPEN;
+
+  const setStatus = async (status) => {
+    setSaving(true);
+    const patch = { status };
+    if (status === "UNDER_REVIEW") patch.reviewedBy = c.reviewedByPending || "HOD";
+    if (status === "SENT_TO_SERVICE") {
+      patch.sentToServiceAt = new Date().toISOString();
+      if (date) patch.expectedCompletionDate = date;
+    }
+    if (status === "RESOLVED") {
+      patch.resolvedBy = "HOD";
+      patch.resolvedTs = new Date().toISOString();
+    }
+    await onUpdate(c.id, patch);
+    setSaving(false);
+  };
+
+  const saveDate = async () => {
+    if (!date) return;
+    setSaving(true);
+    await onUpdate(c.id, { expectedCompletionDate: date });
+    setSaving(false);
+  };
+
+  return (
+    <div className="pq-row">
+      <div className="pq-row-top">
+        <span className="pq-train mono">{c.trainId}</span>
+        <span className="pq-train-name">{c.trainName}</span>
+        <span className="pq-compartment">{c.compartment}</span>
+        <span className="pq-status-chip" style={{ color: meta.color, borderColor: meta.color }}>{meta.label}</span>
+      </div>
+      <div className="pq-row-mid">
+        <span className="pq-issue"><MessageSquareWarning size={13} /> {c.issue}</span>
+        {c.description && <span className="pq-desc">{c.description}</span>}
+      </div>
+      <div className="pq-row-bottom">
+        <span className="pq-ts mono">{new Date(c.ts).toLocaleString("en-IN", { hour12: false })}</span>
+        {c.expectedCompletionDate && (
+          <span className="pq-expected"><CalendarClock size={12} /> Expected: {c.expectedCompletionDate}</span>
+        )}
+        {isHod && c.status !== "RESOLVED" && (
+          <div className="pq-actions">
+            {c.status === "OPEN" && (
+              <button className="pq-btn" disabled={saving} onClick={() => setStatus("UNDER_REVIEW")}>
+                REVIEW
+              </button>
+            )}
+            {(c.status === "OPEN" || c.status === "UNDER_REVIEW") && (
+              <>
+                <input
+                  type="date"
+                  className="pq-date-input"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  onBlur={saveDate}
+                />
+                <button className="pq-btn send" disabled={saving} onClick={() => setStatus("SENT_TO_SERVICE")}>
+                  <Send size={11} /> SEND TO SERVICE
+                </button>
+              </>
+            )}
+            {c.status === "SENT_TO_SERVICE" && (
+              <button className="pq-btn resolve" disabled={saving} onClick={() => setStatus("RESOLVED")}>
+                <CheckCircle2 size={11} /> MARK RESOLVED
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PassengerQueries({ complaints, isHod, onUpdate }) {
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const filtered = complaints.filter((c) => statusFilter === "ALL" || c.status === statusFilter);
+  const counts = useMemo(() => {
+    const c = { OPEN: 0, UNDER_REVIEW: 0, SENT_TO_SERVICE: 0, RESOLVED: 0 };
+    complaints.forEach((x) => { if (c[x.status] !== undefined) c[x.status] += 1; });
+    return c;
+  }, [complaints]);
+
+  return (
+    <section className="pq-panel">
+      <div className="pq-summary">
+        {PQ_STATUS_ORDER.map((s) => (
+          <button
+            key={s}
+            className={statusFilter === s ? "pq-summary-tile on" : "pq-summary-tile"}
+            style={{ borderColor: PQ_STATUS_META[s].color }}
+            onClick={() => setStatusFilter(statusFilter === s ? "ALL" : s)}
+          >
+            <span className="pq-summary-value" style={{ color: PQ_STATUS_META[s].color }}>{counts[s]}</span>
+            <span className="pq-summary-label">{PQ_STATUS_META[s].label}</span>
+          </button>
+        ))}
+      </div>
+      {!isHod && (
+        <div className="pq-view-note">
+          VIEW ONLY — SIGN IN AS HEAD OF DEPARTMENT TO REVIEW, ASSIGN A COMPLETION DATE, AND SEND TO SERVICE.
+        </div>
+      )}
+      <div className="pq-list">
+        {filtered.length === 0 && (
+          <div className="log-empty" style={{ padding: "24px" }}>No passenger queries in this category.</div>
+        )}
+        {filtered.map((c) => (
+          <PassengerQueryRow key={c.id} c={c} isHod={isHod} onUpdate={onUpdate} />
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -1216,14 +1507,15 @@ function OverrideModal({ train, initialNote, onSave, onCancel }) {
 }
 
 function Console({ user, onLogout }) {
-  const [fleet, setFleet] = useState(buildFleet);
+  const [fleet, setFleet] = useState([]);
+  const [fleetLoading, setFleetLoading] = useState(true);
   const [filter, setFilter] = useState("ALL");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   const [clock, setClock] = useState(new Date());
-  const [view, setView] = useState("FLEET"); // "FLEET" | "LOG"
+  const [view, setView] = useState("FLEET"); // "FLEET" | "LOG" | "PLAN" | "MAP" | "PQUERIES"
   const [activityLog, setActivityLog] = useState([]);
-  const [complaints, setComplaints] = useState(loadComplaints);
+  const [complaints, setComplaints] = useState([]);
   const [overrides, setOverrides] = useState({}); // trainId -> { note, by, ts }
   const [overrideTarget, setOverrideTarget] = useState(null); // train being overridden
 
@@ -1246,20 +1538,46 @@ function Console({ user, onLogout }) {
     return () => clearInterval(id);
   }, []);
 
-  // Passenger complaints are submitted from a separate QR-scan page (no login).
-  // Poll + listen for cross-tab storage events so new ones show up live here.
+  // Load the fleet from Supabase once on mount. If the `trains` table is
+  // empty (schema.sql not run yet), fall back to the local mock generator
+  // purely so the UI still renders — real data comes from Supabase once
+  // supabase/schema.sql has been executed in your project.
   useEffect(() => {
-    const refresh = () => setComplaints(loadComplaints());
-    const id = setInterval(refresh, 4000);
-    window.addEventListener("storage", refresh);
+    let alive = true;
+    (async () => {
+      const rows = await fetchFleetFromSupabase();
+      if (!alive) return;
+      setFleet(rows && rows.length ? rows : buildFleet());
+      setFleetLoading(false);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  // Passenger queries live in Supabase now — fetch once, then subscribe to
+  // realtime changes so a new QR-scan submission or an HOD update shows up
+  // instantly on every open dashboard, across devices.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const rows = await fetchComplaints();
+      if (alive) setComplaints(rows);
+    })();
+    const channel = supabase
+      .channel("complaints-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "complaints" }, async () => {
+        const rows = await fetchComplaints();
+        if (alive) setComplaints(rows);
+      })
+      .subscribe();
     return () => {
-      clearInterval(id);
-      window.removeEventListener("storage", refresh);
+      alive = false;
+      supabase.removeChannel(channel);
     };
   }, []);
 
   // Live mileage simulation — trains in ACTIVE service rack up km in real time,
-  // which counts down their "next service due" distance automatically.
+  // which counts down their "next service due" distance automatically. Also
+  // pushed to Supabase every tick so the odometer persists across sessions.
   useEffect(() => {
     const id = setInterval(() => {
       setFleet((prev) =>
@@ -1267,7 +1585,10 @@ function Console({ user, onLogout }) {
           if (deriveStatus(t) !== "ACTIVE") return t;
           const jitter = 1 + seeded((Date.now() / 5000) % 1000 + t.number) * 0.6;
           const inc = Math.max(1, Math.round((t.mileageRatePerHour / 12) * jitter));
-          return { ...t, mileageKm: t.mileageKm + inc, mileageSinceService: t.mileageSinceService + inc };
+          const mileageKm = t.mileageKm + inc;
+          const mileageSinceService = t.mileageSinceService + inc;
+          persistTrain(t.id, { mileageKm, mileageSinceService });
+          return { ...t, mileageKm, mileageSinceService };
         })
       );
     }, 5000);
@@ -1285,6 +1606,9 @@ function Console({ user, onLogout }) {
         if ((key === "jobCardOpen" && value === true) || (key === "certDaysLeft" && value <= 2)) {
           next.approved = false;
         }
+        const patch = { [key]: value };
+        if (next.approved !== t.approved) patch.approved = next.approved;
+        persistTrain(id, patch);
         return next;
       })
     );
@@ -1292,9 +1616,18 @@ function Console({ user, onLogout }) {
 
   const approve = (id) => {
     setFleet((prev) => prev.map((t) => (t.id === id ? { ...t, approved: true } : t)));
+    persistTrain(id, { approved: true });
   };
   const revoke = (id) => {
     setFleet((prev) => prev.map((t) => (t.id === id ? { ...t, approved: false } : t)));
+    persistTrain(id, { approved: false });
+  };
+
+  // Passenger-Queries workflow: HOD reviews a query, assigns an expected
+  // completion date, and pushes it to Service. Writes straight to Supabase;
+  // the realtime subscription above then refreshes local state for everyone.
+  const updateComplaintStatus = async (id, patch) => {
+    await updateComplaint(id, patch);
   };
 
   // Called when a finalize-checklist is confirmed: resets the "since last service"
@@ -1313,6 +1646,15 @@ function Console({ user, onLogout }) {
           approvedBy: user.name,
           durationHrs: Math.round(2 + Math.random() * 5),
         };
+        const serviceHistory = [entry, ...t.serviceHistory];
+        persistTrain(id, {
+          mileageSinceService: 0,
+          lastServiceDate: today,
+          lastServiceType: type,
+          lastServiceNotes: doneLabels.join("; "),
+          lastServiceApprovedBy: user.name,
+          serviceHistory,
+        });
         return {
           ...t,
           mileageSinceService: 0,
@@ -1320,19 +1662,15 @@ function Console({ user, onLogout }) {
           lastServiceType: type,
           lastServiceNotes: doneLabels.join("; "),
           lastServiceApprovedBy: user.name,
-          serviceHistory: [entry, ...t.serviceHistory],
+          serviceHistory,
         };
       })
     );
     if (complaintIds && complaintIds.length) {
-      setComplaints((prev) => {
-        const next = prev.map((c) =>
-          complaintIds.includes(c.id)
-            ? { ...c, status: "RESOLVED", resolvedBy: user.name, resolvedTs: new Date().toISOString() }
-            : c
-        );
-        saveComplaints(next);
-        return next;
+      complaintIds.forEach((cid) => {
+        updateComplaint(cid, { status: "RESOLVED", resolvedBy: user.name, resolvedTs: new Date().toISOString() })
+          .then(async () => setComplaints(await fetchComplaints()))
+          .catch(() => {});
       });
     }
   };
@@ -1410,11 +1748,16 @@ function Console({ user, onLogout }) {
       </header>
 
       <main className="console-main">
+        {fleetLoading && (
+          <div className="pq-view-note" style={{ marginBottom: 14 }}>
+            LOADING FLEET FROM SUPABASE...
+          </div>
+        )}
         {totalOpenComplaints > 0 && (
-          <div className="complaints-banner" onClick={() => setView("LOG")}>
+          <div className="complaints-banner" onClick={() => setView("PQUERIES")}>
             <AlertTriangle size={14} />
-            <strong>{totalOpenComplaints}</strong> open passenger complaint{totalOpenComplaints > 1 ? "s" : ""} across the fleet —
-            these are pulled into each train's next service checklist. Click to view in Maintenance Log.
+            <strong>{totalOpenComplaints}</strong> open passenger quer{totalOpenComplaints > 1 ? "ies" : "y"} across the fleet —
+            click to review, assign a date, and send to Service.
           </div>
         )}
 
@@ -1441,6 +1784,10 @@ function Console({ user, onLogout }) {
             </button>
             <button className={view === "MAP" ? "tab on" : "tab"} onClick={() => setView("MAP")}>
               <Gauge size={11} style={{ marginRight: 5, verticalAlign: -2 }} /> LIVE OPS MAP
+            </button>
+            <button className={view === "PQUERIES" ? "tab on" : "tab"} onClick={() => setView("PQUERIES")}>
+              <MessageSquareWarning size={11} style={{ marginRight: 5, verticalAlign: -2 }} /> PASSENGER QUERIES
+              {totalOpenComplaints > 0 && <span className="complaint-badge">⚠ {totalOpenComplaints}</span>}
             </button>
           </div>
           {view === "FLEET" && (
@@ -1472,6 +1819,8 @@ function Console({ user, onLogout }) {
           />
         ) : view === "MAP" ? (
           <LiveMap fleet={enriched} clock={clock} onSelect={setSelectedId} />
+        ) : view === "PQUERIES" ? (
+          <PassengerQueries complaints={complaints} isHod={isHod} onUpdate={updateComplaintStatus} />
         ) : (
           <>
             <section className="registry">

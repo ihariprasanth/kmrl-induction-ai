@@ -3,6 +3,31 @@
 AI-Driven Train Induction Planning & Scheduling — SIH25081
 Kochi Metro Rail Limited (KMRL), 25-trainset fleet.
 
+## Supabase setup (do this first)
+
+The app now persists everything in Supabase instead of resetting on refresh:
+login (`app_users`), the 25-train fleet (`trains`), and passenger queries
+(`complaints`).
+
+1. Create a free project at https://supabase.com.
+2. Open **SQL Editor** → New query → paste the contents of
+   `supabase/schema.sql` → **Run**. This creates all 3 tables, seeds the
+   25 trainsets at a **zero baseline** (mileage 0, cert days 0, health 0%,
+   etc.), seeds 2 demo logins, enables Row Level Security with anon
+   read/write policies, and turns on Realtime for `trains` and
+   `complaints`. Re-running this file wipes and reseeds everything — that's
+   how you do a full "reset to zero" later.
+3. Open **Project Settings → API**, copy the **Project URL** and the
+   **anon public key**.
+4. Copy `.env.example` to `.env` in the project root and paste those two
+   values in.
+5. `npm install` (pulls in `@supabase/supabase-js`), then `npm run dev`.
+
+Change the two demo accounts (`hod` / `hod@123` and `operator` /
+`operator@123`) in the `app_users` table before sharing this with anyone —
+see the note at the bottom of `supabase/schema.sql` about passwords being
+plaintext in this demo build.
+
 ## Run locally
 
 ```
@@ -10,8 +35,9 @@ npm install
 npm run dev
 ```
 
-Open the printed localhost URL. Any username/password logs you in — pick
-**Head of Department** or **Service / Operator** on the login screen.
+Open the printed localhost URL and log in with a username/password from
+your `app_users` table, picking the matching **Head of Department** or
+**Service / Operator** role tab.
 
 ## Roles
 
@@ -82,12 +108,30 @@ public river-naming convention, compiled from available web sources. Verify
 the exact roster against kochimetro.org before using this in an official
 submission — the live page could not be scraped directly.
 
+## Passenger Queries (new)
+
+A dedicated **Passenger Queries** tab (with a live badge count of open
+items) sits alongside the other four tabs. A passenger scans the QR code
+shown in a train's detail drawer, which opens the no-login
+`ComplaintPortal` page and submits straight into Supabase. Every open
+dashboard sees it appear instantly via Supabase Realtime — no refresh
+needed. From this tab, **HOD** can:
+- mark a query **Under Review**,
+- assign an **expected completion date**,
+- **Send to Service**, and
+- **Mark Resolved** once fixed.
+
+Operators can view the same list read-only. Anything sent to Service is
+also pulled into that train's next service checklist in the drawer, same
+as before.
+
 Fleet metrics (mileage, certificate expiry, job-cards, branding hours,
-traction/electrical health, service history) are deterministically generated
-mock data for demonstration, not live KMRL operational data or real
-maintenance records.
+traction/electrical health, service history) start at a **zero baseline**
+in Supabase and are edited/persisted from there on — they are demo data
+you fill in through the UI, not live KMRL operational data.
 
 ## Stack
 
-React 18 + Vite, recharts for the mileage chart, lucide-react for icons.
-No backend — all state is in-memory and resets on refresh.
+React 18 + Vite, recharts for the mileage chart, lucide-react for icons,
+Supabase (Postgres + Realtime) for auth, fleet data, and passenger
+queries — see "Supabase setup" above.
