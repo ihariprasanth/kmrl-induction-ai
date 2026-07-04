@@ -428,3 +428,51 @@ body { font-size: 13px; }
   .log-train-list { max-height: 220px; }
   .log-detail { max-height: none; }
 }
+
+/* ---------------- INDUCTION PLAN ---------------- */
+.route-ref-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 20px; margin-bottom: 10px;
+}
+.route-ref-grid > div { display: flex; flex-direction: column; gap: 2px; }
+.route-ref-label { font-size: 9px; color: #5C7A6C; letter-spacing: 0.5px; }
+.route-ref-val { font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 700; color: #EAF7F0; }
+.route-ref-note { font-size: 10.5px; color: #5C7A6C; line-height: 1.5; padding: 0 2px; }
+
+.plan-head, .plan-row {
+  grid-template-columns: 0.9fr 1.1fr 1.4fr 0.6fr 1fr 1fr 1.1fr 1fr !important;
+}
+
+/* ---------------- LIVE OPS MAP ---------------- */
+.line-track-wrap { padding: 30px 10px 46px; }
+.line-track {
+  position: relative; height: 4px; background: #1F3B30; border-radius: 2px; margin: 0 30px;
+}
+.line-endpoint {
+  position: absolute; top: -22px; font-size: 9px; letter-spacing: 0.6px; color: #5C7A6C; font-weight: 700;
+}
+.line-endpoint.left { left: -6px; }
+.line-endpoint.right { right: -6px; }
+.station-tick {
+  position: absolute; top: -2px; width: 2px; height: 8px; background: #2B4A3B; transform: translateX(-1px);
+}
+.depot-marker { position: absolute; top: 10px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.depot-dot { width: 8px; height: 8px; border-radius: 2px; background: #5C7A6C; }
+.depot-label { font-size: 8px; color: #5C7A6C; letter-spacing: 0.5px; }
+.train-marker {
+  position: absolute; top: -13px; transform: translateX(-50%);
+  width: 26px; height: 26px; border-radius: 50%; border: 2px solid;
+  background: #0B1410; font-size: 9.5px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: left 0.9s linear;
+}
+.live-list-cols { display: flex; gap: 16px; flex-wrap: wrap; }
+.live-head, .live-row { grid-template-columns: 1fr 1.3fr 0.4fr 1.3fr 0.9fr !important; }
+.depot-head, .depot-row { grid-template-columns: 1fr 1.3fr 1.6fr 0.6fr !important; }
+.empty-row { padding: 14px; font-size: 11px; color: #5C7A6C; text-align: center; }
+
+@media (max-width: 720px) {
+  .route-ref-grid { grid-template-columns: 1fr 1fr; }
+  .plan-head span:nth-child(n+5), .plan-row span:nth-child(n+5) { display: none; }
+  .live-list-cols { flex-direction: column; }
+  .line-track { margin: 0 16px; }
+}

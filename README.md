@@ -39,6 +39,35 @@ Clicking any train opens a full detail view with:
 - **Service history log** — the last 4 service entries with type, work performed,
   duration, and approving HOD.
 
+## Induction Plan & Live Ops Map (new)
+
+Two extra tabs sit alongside Fleet View / Maintenance Log:
+
+- **Induction Plan** — ranks all 25 trains into **P1 (critical, route to
+  maintenance first)**, **P2 (monitor / schedule soon)**, **P3 (routine)**
+  using a rule-based risk score (job-card status, certificate days left,
+  traction motor / brake / battery health %, HVAC, and how close each
+  train is to its 4,500 km service interval). For each train it also
+  shows km already run since last service, km left to next service, how
+  many more one-way "single covers" it can do before it's due, and an
+  estimated number of days to that point based on its live mileage rate.
+  This is presented as the project's AI-driven prediction layer — it's a
+  deterministic heuristic for demo purposes, not a trained ML model.
+- **Live Ops Map** — a simulated schematic of the real Aluva ↔
+  Tripunithura Blue Line (25 stations, 25.16 km, ~47 min one-way, 06:00–
+  22:30 service window — sourced from public KMRL route information).
+  Trains in ACTIVE service are animated along the line in real time
+  (direction, next station, ETA) based on the app's own clock and each
+  train's schedule cycle; trains not in service are shown parked at
+  Muttom Depot with their bay number. **No public live-GPS feed exists
+  for individual KMRL trainsets**, so this is a realistic simulation
+  driven by the app itself, not scraped or fetched live data.
+
+Per-station distances are interpolated from KMRL's published
+commissioning-segment lengths and rescaled to the official 25.16 km
+total — they're a realistic approximation, not an official
+station-to-station distance table.
+
 ## Data note
 
 Train names (Krishna, Periyar, Kaveri, Pampa, Ganga, etc.) reflect KMRL's

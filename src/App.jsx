@@ -30,6 +30,118 @@ const TRAIN_ID_LIST = TRAIN_NAMES.map((name, i) => ({
 /* Distance (km) after which a train is due for its next scheduled service */
 const SERVICE_INTERVAL_KM = 4500;
 
+/* =========================================================================
+   ROUTE MODEL — KMRL Blue Line (Aluva <-> Tripunithura)
+   Real-world reference points: 25 operational stations, official route
+   length 25.16 km, ~47 min end-to-end running time, service window
+   06:00-22:30 daily (Sun 07:30 start, simplified here to one window).
+   Per-station cumulative distances below are INTERPOLATED from KMRL's
+   published commissioning-segment lengths (Aluva-Palarivattom 13.2km,
+   Palarivattom-Maharaja's College 5km, ...-Thaikoodam 5.65km, -Petta
+   1.12km, -SN Junction 1.78km, -Tripunithura 1.16km) and rescaled to sum
+   to the official 25.16 km total — they are a realistic approximation,
+   not an official KMRL station-to-station distance table.
+========================================================================= */
+const STATIONS = [
+  "Aluva", "Pulinchodu", "Companypady", "Ambattukavu", "Muttom", "Kalamassery",
+  "CUSAT", "Pathadipalam", "Edapally", "Changampuzha Park", "Palarivattom",
+  "JLN Stadium", "Kaloor", "Lissie", "MG Road", "Maharaja's College",
+  "Ernakulam South", "Kadavanthra", "Elamkulam", "Vytila", "Thaikoodam",
+  "Petta", "Vadakkekotta", "SN Junction", "Tripunithura",
+];
+const STATION_KM = [
+  0.00, 1.19, 2.38, 3.57, 4.76, 5.95, 7.14, 8.33, 9.52, 10.71, 11.90,
+  12.80, 13.70, 14.61, 15.51, 16.41, 17.42, 18.44, 19.46, 20.48, 21.50,
+  22.51, 23.31, 24.11, 25.16,
+];
+const DEPOT_STATION_IDX = 4; // Muttom — real KMRL depot location
+const ONE_WAY_KM = STATION_KM[STATION_KM.length - 1]; // 25.16 km
+const ROUND_TRIP_KM = ONE_WAY_KM * 2;
+const ONE_WAY_MINUTES = 47;
+const TURNAROUND_MINUTES = 5;
+const CYCLE_MINUTES = ONE_WAY_MINUTES * 2 + TURNAROUND_MINUTES * 2; // 104
+const SERVICE_START_MIN = 6 * 60; // 06:00
+const SERVICE_END_MIN = 22 * 60 + 30; // 22:30
+/* Assumed average hours/day a given trainset is actually in ACTIVE
+   rotation (vs standby/turnback) — used only for the predictive estimate
+   below, not an official KMRL utilisation figure. */
+const AVG_ACTIVE_HOURS_PER_DAY = 12;
+/* Max one-way "single covers" a train can run between services, purely
+   from the fixed service-interval-km / one-way-km ratio. */
+const MAX_RIDES_PER_SERVICE_CYCLE = Math.floor(SERVICE_INTERVAL_KM / ONE_WAY_KM);
+
+/* ---- AI-style predictive scoring (rule-based heuristic — see README) ---- */
+function riskScoreFor(t) {
+  let s = 0;
+  if (t.jobCardOpen) s += 30;
+  if (t.certDaysLeft <= 7) s += (7 - t.certDaysLeft) * 4;
+  s += Math.round((100 - t.tractionMotorHealth) * 0.25);
+  s += Math.round(t.brakePadWear * 0.3);
+  s += Math.round((100 - t.batteryHealth) * 0.2);
+  if (t.hvacStatus === "Needs Check") s += 8;
+  s += Math.round((t.mileageSinceService / SERVICE_INTERVAL_KM) * 20);
+  s += Math.round((100 - t.regenBrakingEfficiency) * 0.1);
+  return Math.max(0, Math.min(100, s));
+}
+function priorityFor(score, t) {
+  if (t.jobCardOpen || t.certDaysLeft <= 2 || score >= 55) return "P1";
+  if (score >= 30) return "P2";
+  return "P3";
+}
+const PRIORITY_META = {
+  P1: { label: "P1 · CRITICAL — MAINTENANCE FIRST", color: "#FF4D4D" },
+  P2: { label: "P2 · MONITOR / SCHEDULE SOON", color: "#FFC93B" },
+  P3: { label: "P3 · ROUTINE", color: "#39E68B" },
+};
+function predictFor(t) {
+  const kmToService = Math.max(0, SERVICE_INTERVAL_KM - t.mileageSinceService);
+  const dailyKmEstimate = t.mileageRatePerHour * AVG_ACTIVE_HOURS_PER_DAY;
+  const ridesRemaining = Math.floor(kmToService / ONE_WAY_KM);
+  const tripsPerDay = Math.max(1, Math.round(dailyKmEstimate / ONE_WAY_KM));
+  const predictedDays = Math.max(0, Math.ceil(kmToService / Math.max(dailyKmEstimate, 1)));
+  return { kmToService, dailyKmEstimate, ridesRemaining, tripsPerDay, predictedDays };
+}
+
+/* ---- Live-position simulation along the route, driven by the clock ---- */
+function stationIndexFromKm(km) {
+  let i = 0;
+  while (i < STATION_KM.length - 2 && STATION_KM[i + 1] <= km) i++;
+  return i;
+}
+function getLivePosition(t, status, now) {
+  if (status !== "ACTIVE") {
+    return { mode: "DEPOT", bay: t.bay, note: "Muttom Depot" };
+  }
+  const minutesNow = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  if (minutesNow < SERVICE_START_MIN || minutesNow > SERVICE_END_MIN) {
+    return { mode: "DEPOT", bay: t.bay, note: "Outside service hours (06:00-22:30)" };
+  }
+  const offset = seeded(t.number * 53.7) * CYCLE_MINUTES;
+  const cyc = ((minutesNow - SERVICE_START_MIN + offset) % CYCLE_MINUTES + CYCLE_MINUTES) % CYCLE_MINUTES;
+  let direction, km, dwellAt = null;
+  if (cyc < ONE_WAY_MINUTES) {
+    direction = "UP"; km = (cyc / ONE_WAY_MINUTES) * ONE_WAY_KM;
+  } else if (cyc < ONE_WAY_MINUTES + TURNAROUND_MINUTES) {
+    direction = "UP"; km = ONE_WAY_KM; dwellAt = "Tripunithura";
+  } else if (cyc < ONE_WAY_MINUTES * 2 + TURNAROUND_MINUTES) {
+    const tt = cyc - ONE_WAY_MINUTES - TURNAROUND_MINUTES;
+    direction = "DOWN"; km = ONE_WAY_KM - (tt / ONE_WAY_MINUTES) * ONE_WAY_KM;
+  } else {
+    direction = "DOWN"; km = 0; dwellAt = "Aluva";
+  }
+  const idx = stationIndexFromKm(km);
+  const nextIdx = direction === "UP" ? Math.min(idx + 1, STATIONS.length - 1) : idx;
+  const nextStation = dwellAt || STATIONS[direction === "UP" ? nextIdx : idx];
+  const kmPerMin = ONE_WAY_KM / ONE_WAY_MINUTES;
+  const kmToNext = dwellAt ? 0 : Math.abs(STATION_KM[nextIdx] - km);
+  const etaMinutes = dwellAt ? 0 : Math.max(0, Math.round(kmToNext / kmPerMin));
+  return {
+    mode: dwellAt ? "AT_STATION" : "RUNNING",
+    direction, km, pct: (km / ONE_WAY_KM) * 100,
+    nextStation, etaMinutes, dwellAt,
+  };
+}
+
 /* Common passenger-reported issues, tagged to a coach via QR complaint portal */
 const COMPARTMENTS = ["Coach 1 (Aluva end)", "Coach 2 (Middle)", "Coach 3 (Tripunithura end)"];
 const COMPLAINT_ISSUES = [
@@ -841,6 +953,195 @@ function MaintenanceLog({ fleet, activityLog, complaints }) {
 /* =========================================================================
    MAIN CONSOLE
 ========================================================================= */
+/* =========================================================================
+   INDUCTION PRIORITY PLAN
+   P1 / P2 / P3 risk-ranked induction queue + trip-capacity predictions.
+========================================================================= */
+function InductionPlan({ fleet, onSelect }) {
+  const ranked = useMemo(() => {
+    return fleet
+      .slice()
+      .sort((a, b) => {
+        const order = { P1: 0, P2: 1, P3: 2 };
+        if (order[a.priority] !== order[b.priority]) return order[a.priority] - order[b.priority];
+        return b.riskScore - a.riskScore;
+      });
+  }, [fleet]);
+
+  const counts = { P1: 0, P2: 0, P3: 0 };
+  fleet.forEach((t) => (counts[t.priority] += 1));
+
+  const needsMaintenanceFirst = ranked.filter((t) => t.priority === "P1" && t.status !== "MAINTENANCE");
+
+  return (
+    <>
+      <section className="status-panel">
+        {["P1", "P2", "P3"].map((p) => (
+          <div className="status-tile" key={p} style={{ borderColor: PRIORITY_META[p].color }}>
+            <span className="led" style={{ background: PRIORITY_META[p].color, boxShadow: `0 0 7px ${PRIORITY_META[p].color}` }} />
+            <div className="status-tile-value">{counts[p]}</div>
+            <div className="status-tile-label">{PRIORITY_META[p].label}</div>
+          </div>
+        ))}
+        <div className="status-tile" style={{ borderColor: "#3FC8FF" }}>
+          <span className="led" style={{ background: "#3FC8FF", boxShadow: "0 0 7px #3FC8FF" }} />
+          <div className="status-tile-value">{MAX_RIDES_PER_SERVICE_CYCLE}</div>
+          <div className="status-tile-label">MAX SINGLE-COVERS / SERVICE CYCLE</div>
+        </div>
+      </section>
+
+      <section className="schematic" style={{ marginBottom: 18 }}>
+        <div className="section-title">ROUTE &amp; CAPACITY REFERENCE — ALUVA ↔ TRIPUNITHURA</div>
+        <div className="route-ref-grid">
+          <div><span className="route-ref-label">Line span</span><span className="route-ref-val">{ONE_WAY_KM.toFixed(2)} km · 25 stations</span></div>
+          <div><span className="route-ref-label">One-way run time</span><span className="route-ref-val">~{ONE_WAY_MINUTES} min</span></div>
+          <div><span className="route-ref-label">Turnaround / dwell</span><span className="route-ref-val">{TURNAROUND_MINUTES} min each end</span></div>
+          <div><span className="route-ref-label">Service window</span><span className="route-ref-val">06:00 – 22:30</span></div>
+          <div><span className="route-ref-label">Service interval</span><span className="route-ref-val">{SERVICE_INTERVAL_KM.toLocaleString()} km</span></div>
+          <div><span className="route-ref-label">Max single-covers before next service</span><span className="route-ref-val">{MAX_RIDES_PER_SERVICE_CYCLE} rides</span></div>
+        </div>
+        <div className="route-ref-note">
+          These are the fixed rules the induction plan below is derived from: how far one single cover (one-way run) is,
+          how many a train can do before it's due for service, and the priority order trains should be pulled in for maintenance.
+        </div>
+      </section>
+
+      {needsMaintenanceFirst.length > 0 && (
+        <div className="complaints-banner" style={{ borderColor: "#FF4D4D", color: "#FF4D4D" }}>
+          <AlertTriangle size={14} />
+          <strong>{needsMaintenanceFirst.length}</strong> P1 (high-risk) train{needsMaintenanceFirst.length > 1 ? "s" : ""} should be routed to
+          maintenance before being sent to standby/active — {needsMaintenanceFirst.map((t) => t.name).join(", ")}.
+        </div>
+      )}
+
+      <section className="registry">
+        <div className="registry-head plan-head">
+          <span>ID</span><span>NAME</span><span>PRIORITY</span><span>RISK</span>
+          <span>KM SINCE SVC</span><span>KM TO NEXT SVC</span><span>SINGLE-COVERS LEFT</span><span>EST. DAYS TO SVC</span>
+        </div>
+        {ranked.map((t) => {
+          const pm = PRIORITY_META[t.priority];
+          return (
+            <button key={t.id} className="registry-row plan-row" onClick={() => onSelect(t.id)}>
+              <span className="mono">{t.id}</span>
+              <span className="row-name">{t.name}</span>
+              <span className="row-status" style={{ color: pm.color }}>
+                <span className="led sm" style={{ background: pm.color }} /> {t.priority}
+              </span>
+              <span className="mono">{t.riskScore}</span>
+              <span className="mono">{t.mileageSinceService.toLocaleString()} km</span>
+              <span className="mono">{t.kmToService.toLocaleString()} km</span>
+              <span className="mono">{t.ridesRemaining}</span>
+              <span className="mono">{t.predictedDays}d</span>
+            </button>
+          );
+        })}
+      </section>
+      <div className="route-ref-note" style={{ marginTop: -6 }}>
+        Risk score and days-to-service are a rule-based heuristic combining job-card status, certificate expiry, component
+        health %, and live mileage rate — a demo predictive model, not a trained ML system.
+      </div>
+    </>
+  );
+}
+
+/* =========================================================================
+   LIVE OPS MAP
+   Simulated real-time positions along the Aluva-Tripunithura line, driven
+   by the app clock (no external live-GPS feed exists publicly for this).
+========================================================================= */
+function LiveMap({ fleet, clock, onSelect }) {
+  const running = fleet.filter((t) => t.live.mode !== "DEPOT");
+  const atDepot = fleet.filter((t) => t.live.mode === "DEPOT");
+  const depotPct = (STATION_KM[DEPOT_STATION_IDX] / ONE_WAY_KM) * 100;
+
+  return (
+    <>
+      <section className="status-panel" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+        <div className="status-tile" style={{ borderColor: "#39E68B" }}>
+          <span className="led" style={{ background: "#39E68B", boxShadow: "0 0 7px #39E68B" }} />
+          <div className="status-tile-value">{running.length}</div>
+          <div className="status-tile-label">RUNNING ON LINE</div>
+        </div>
+        <div className="status-tile" style={{ borderColor: "#5C7A6C" }}>
+          <span className="led" style={{ background: "#5C7A6C" }} />
+          <div className="status-tile-value">{atDepot.length}</div>
+          <div className="status-tile-label">AT MUTTOM DEPOT</div>
+        </div>
+        <div className="status-tile" style={{ borderColor: "#3FC8FF" }}>
+          <span className="led" style={{ background: "#3FC8FF", boxShadow: "0 0 7px #3FC8FF" }} />
+          <div className="status-tile-value">{clock.toLocaleTimeString("en-IN", { hour12: false })}</div>
+          <div className="status-tile-label">SIM CLOCK</div>
+        </div>
+      </section>
+
+      <section className="schematic" style={{ marginBottom: 18 }}>
+        <div className="section-title">LIVE LINE SCHEMATIC — ALUVA ↔ TRIPUNITHURA (SIMULATED)</div>
+        <div className="line-track-wrap">
+          <div className="line-track">
+            <span className="line-endpoint left">ALUVA</span>
+            <span className="line-endpoint right">TRIPUNITHURA</span>
+            <div className="depot-marker" style={{ left: `${depotPct}%` }} title="Muttom Depot">
+              <div className="depot-dot" /><span className="depot-label">DEPOT</span>
+            </div>
+            {STATION_KM.map((km, i) => (
+              <div key={i} className="station-tick" style={{ left: `${(km / ONE_WAY_KM) * 100}%` }} />
+            ))}
+            {running.map((t) => (
+              <button
+                key={t.id}
+                className="train-marker"
+                style={{ left: `${t.live.pct}%`, borderColor: SIGNAL[t.status].color, color: SIGNAL[t.status].color }}
+                onClick={() => onSelect(t.id)}
+                title={`${t.name} · ${t.live.direction} · next: ${t.live.nextStation}`}
+              >
+                {String(t.number).padStart(2, "0")}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="route-ref-note">
+          Positions are computed live from each train's schedule cycle (one-way run + turnaround), not fetched from a
+          KMRL live-GPS feed — no such public feed exists. Trains not in ACTIVE service show at Muttom Depot.
+        </div>
+      </section>
+
+      <div className="live-list-cols">
+        <section className="registry" style={{ flex: 1 }}>
+          <div className="registry-head live-head">
+            <span>ID</span><span>NAME</span><span>DIR</span><span>NEXT STOP</span><span>ETA</span>
+          </div>
+          {running.length === 0 && <div className="empty-row">No trains currently running (outside service hours).</div>}
+          {running.map((t) => (
+            <button key={t.id} className="registry-row live-row" onClick={() => onSelect(t.id)}>
+              <span className="mono">{t.id}</span>
+              <span className="row-name">{t.name}</span>
+              <span className="mono">{t.live.dwellAt ? "•" : t.live.direction === "UP" ? "→" : "←"}</span>
+              <span className="mono">{t.live.dwellAt ? `At ${t.live.dwellAt}` : t.live.nextStation}</span>
+              <span className="mono">{t.live.dwellAt ? "dwelling" : `${t.live.etaMinutes} min`}</span>
+            </button>
+          ))}
+        </section>
+        <section className="registry" style={{ flex: 1 }}>
+          <div className="registry-head depot-head">
+            <span>ID</span><span>NAME</span><span>STATUS</span><span>BAY</span>
+          </div>
+          {atDepot.map((t) => (
+            <button key={t.id} className="registry-row depot-row" onClick={() => onSelect(t.id)}>
+              <span className="mono">{t.id}</span>
+              <span className="row-name">{t.name}</span>
+              <span className="row-status" style={{ color: SIGNAL[t.status].color }}>
+                <span className="led sm" style={{ background: SIGNAL[t.status].color }} /> {SIGNAL[t.status].label}
+              </span>
+              <span className="mono">B{t.bay}</span>
+            </button>
+          ))}
+        </section>
+      </div>
+    </>
+  );
+}
+
 function Console({ user, onLogout }) {
   const [fleet, setFleet] = useState(buildFleet);
   const [filter, setFilter] = useState("ALL");
@@ -969,6 +1270,17 @@ function Console({ user, onLogout }) {
     () => fleet.map((t) => ({ ...t, status: deriveStatus(t) })),
     [fleet]
   );
+  const enriched = useMemo(
+    () =>
+      withStatus.map((t) => {
+        const riskScore = riskScoreFor(t);
+        const priority = priorityFor(riskScore, t);
+        const prediction = predictFor(t);
+        const live = getLivePosition(t, t.status, clock);
+        return { ...t, riskScore, priority, ...prediction, live };
+      }),
+    [withStatus, clock]
+  );
 
   const counts = useMemo(() => {
     const c = { MAINTENANCE: 0, STANDBY: 0, PENDING: 0, ACTIVE: 0 };
@@ -1041,6 +1353,12 @@ function Console({ user, onLogout }) {
             <button className={view === "LOG" ? "tab on" : "tab"} onClick={() => setView("LOG")}>
               <History size={11} style={{ marginRight: 5, verticalAlign: -2 }} /> MAINTENANCE LOG
             </button>
+            <button className={view === "PLAN" ? "tab on" : "tab"} onClick={() => setView("PLAN")}>
+              <ClipboardList size={11} style={{ marginRight: 5, verticalAlign: -2 }} /> INDUCTION PLAN
+            </button>
+            <button className={view === "MAP" ? "tab on" : "tab"} onClick={() => setView("MAP")}>
+              <Gauge size={11} style={{ marginRight: 5, verticalAlign: -2 }} /> LIVE OPS MAP
+            </button>
           </div>
           {view === "FLEET" && (
             <>
@@ -1061,6 +1379,10 @@ function Console({ user, onLogout }) {
 
         {view === "LOG" ? (
           <MaintenanceLog fleet={withStatus} activityLog={activityLog} complaints={complaints} />
+        ) : view === "PLAN" ? (
+          <InductionPlan fleet={enriched} onSelect={setSelectedId} />
+        ) : view === "MAP" ? (
+          <LiveMap fleet={enriched} clock={clock} onSelect={setSelectedId} />
         ) : (
           <>
             <section className="registry">
