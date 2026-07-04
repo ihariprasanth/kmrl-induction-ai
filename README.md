@@ -51,17 +51,24 @@ Two extra tabs sit alongside Fleet View / Maintenance Log:
   shows km already run since last service, km left to next service, how
   many more one-way "single covers" it can do before it's due, and an
   estimated number of days to that point based on its live mileage rate.
+  Every row shows a short "Why:" explainable-AI reason string, and for
+  P1 trains, HOD can log an **override note** (visible in the Maintenance
+  Log) explaining why a suggested priority wasn't followed — this doesn't
+  change the train's actual status, it's an accountability record.
   This is presented as the project's AI-driven prediction layer — it's a
   deterministic heuristic for demo purposes, not a trained ML model.
 - **Live Ops Map** — a simulated schematic of the real Aluva ↔
-  Tripunithura Blue Line (25 stations, 25.16 km, ~47 min one-way, 06:00–
-  22:30 service window — sourced from public KMRL route information).
+  Tripunithura Blue Line (25 stations, 25.16 km, ~47 min one-way, service
+  06:00–22:30 weekdays / 07:30 start Sundays, frequency ~8 min peak /
+  10-15 min non-peak — sourced from public KMRL route information).
   Trains in ACTIVE service are animated along the line in real time
   (direction, next station, ETA) based on the app's own clock and each
   train's schedule cycle; trains not in service are shown parked at
   Muttom Depot with their bay number. **No public live-GPS feed exists
-  for individual KMRL trainsets**, so this is a realistic simulation
-  driven by the app itself, not scraped or fetched live data.
+  for individual KMRL trainsets** — even KMRL-linked third-party trip
+  planners state their train positions are "based on schedules and are
+  not live" — so this is a realistic simulation driven by the app itself,
+  not scraped or fetched live data.
 
 Per-station distances are interpolated from KMRL's published
 commissioning-segment lengths and rescaled to the official 25.16 km

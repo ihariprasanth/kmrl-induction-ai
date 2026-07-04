@@ -476,3 +476,23 @@ body { font-size: 13px; }
   .live-list-cols { flex-direction: column; }
   .line-track { margin: 0 16px; }
 }
+
+/* ---------------- INDUCTION PLAN — reason row + override ---------------- */
+.plan-row-wrap { border-bottom: 1px solid #1F3B30; }
+.plan-row-wrap:last-child { border-bottom: none; }
+.plan-row-wrap .plan-row { border-bottom: none; }
+.plan-reason-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 0 14px 9px 14px; font-size: 10.5px; color: #5C7A6C;
+}
+.plan-reason-text em { color: #849B8F; font-style: normal; font-weight: 700; margin-right: 4px; }
+.override-btn {
+  flex-shrink: 0; background: transparent; border: 1px solid #FF4D4D; color: #FF4D4D;
+  border-radius: 3px; padding: 4px 10px; font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+  cursor: pointer; font-family: inherit;
+}
+.override-btn:hover { background: rgba(255,77,77,0.12); }
+.plan-override-note {
+  display: flex; align-items: center; gap: 6px; padding: 0 14px 10px 14px;
+  font-size: 10px; color: #3FC8FF;
+}

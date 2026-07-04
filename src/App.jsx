@@ -101,6 +101,19 @@ function predictFor(t) {
   const predictedDays = Math.max(0, Math.ceil(kmToService / Math.max(dailyKmEstimate, 1)));
   return { kmToService, dailyKmEstimate, ridesRemaining, tripsPerDay, predictedDays };
 }
+/* Explainable-AI style reason string for why a train landed at its priority */
+function reasonForRisk(t) {
+  const reasons = [];
+  if (t.jobCardOpen) reasons.push("open job-card");
+  if (t.certDaysLeft <= 7) reasons.push(`fitness cert expires in ${t.certDaysLeft}d`);
+  if (t.tractionMotorHealth < 80) reasons.push(`motor health ${t.tractionMotorHealth}%`);
+  if (t.brakePadWear > 60) reasons.push(`brake wear ${t.brakePadWear}%`);
+  if (t.batteryHealth < 85) reasons.push(`battery ${t.batteryHealth}%`);
+  if (t.hvacStatus === "Needs Check") reasons.push("HVAC needs check");
+  if (t.mileageSinceService / SERVICE_INTERVAL_KM > 0.8) reasons.push("nearing service-km limit");
+  if (reasons.length === 0) return "All health indicators within normal range.";
+  return reasons.join(" · ");
+}
 
 /* ---- Live-position simulation along the route, driven by the clock ---- */
 function stationIndexFromKm(km) {
@@ -957,7 +970,7 @@ function MaintenanceLog({ fleet, activityLog, complaints }) {
    INDUCTION PRIORITY PLAN
    P1 / P2 / P3 risk-ranked induction queue + trip-capacity predictions.
 ========================================================================= */
-function InductionPlan({ fleet, onSelect }) {
+function InductionPlan({ fleet, onSelect, isHod, onOverride, overrides }) {
   const ranked = useMemo(() => {
     return fleet
       .slice()
@@ -996,7 +1009,8 @@ function InductionPlan({ fleet, onSelect }) {
           <div><span className="route-ref-label">Line span</span><span className="route-ref-val">{ONE_WAY_KM.toFixed(2)} km · 25 stations</span></div>
           <div><span className="route-ref-label">One-way run time</span><span className="route-ref-val">~{ONE_WAY_MINUTES} min</span></div>
           <div><span className="route-ref-label">Turnaround / dwell</span><span className="route-ref-val">{TURNAROUND_MINUTES} min each end</span></div>
-          <div><span className="route-ref-label">Service window</span><span className="route-ref-val">06:00 – 22:30</span></div>
+          <div><span className="route-ref-label">Service window</span><span className="route-ref-val">06:00 – 22:30 (Sun from 07:30)</span></div>
+          <div><span className="route-ref-label">Frequency</span><span className="route-ref-val">~8 min peak · 10-15 min non-peak</span></div>
           <div><span className="route-ref-label">Service interval</span><span className="route-ref-val">{SERVICE_INTERVAL_KM.toLocaleString()} km</span></div>
           <div><span className="route-ref-label">Max single-covers before next service</span><span className="route-ref-val">{MAX_RIDES_PER_SERVICE_CYCLE} rides</span></div>
         </div>
@@ -1021,19 +1035,35 @@ function InductionPlan({ fleet, onSelect }) {
         </div>
         {ranked.map((t) => {
           const pm = PRIORITY_META[t.priority];
+          const ov = overrides[t.id];
           return (
-            <button key={t.id} className="registry-row plan-row" onClick={() => onSelect(t.id)}>
-              <span className="mono">{t.id}</span>
-              <span className="row-name">{t.name}</span>
-              <span className="row-status" style={{ color: pm.color }}>
-                <span className="led sm" style={{ background: pm.color }} /> {t.priority}
-              </span>
-              <span className="mono">{t.riskScore}</span>
-              <span className="mono">{t.mileageSinceService.toLocaleString()} km</span>
-              <span className="mono">{t.kmToService.toLocaleString()} km</span>
-              <span className="mono">{t.ridesRemaining}</span>
-              <span className="mono">{t.predictedDays}d</span>
-            </button>
+            <div key={t.id} className="plan-row-wrap">
+              <button className="registry-row plan-row" onClick={() => onSelect(t.id)}>
+                <span className="mono">{t.id}</span>
+                <span className="row-name">{t.name}</span>
+                <span className="row-status" style={{ color: pm.color }}>
+                  <span className="led sm" style={{ background: pm.color }} /> {t.priority}
+                </span>
+                <span className="mono">{t.riskScore}</span>
+                <span className="mono">{t.mileageSinceService.toLocaleString()} km</span>
+                <span className="mono">{t.kmToService.toLocaleString()} km</span>
+                <span className="mono">{t.ridesRemaining}</span>
+                <span className="mono">{t.predictedDays}d</span>
+              </button>
+              <div className="plan-reason-row">
+                <span className="plan-reason-text"><em>Why:</em> {t.reason}</span>
+                {isHod && t.priority === "P1" && (
+                  <button className="override-btn" onClick={() => onOverride(t)}>
+                    {ov ? "EDIT OVERRIDE" : "OVERRIDE"}
+                  </button>
+                )}
+              </div>
+              {ov && (
+                <div className="plan-override-note">
+                  <History size={11} /> HOD override by {ov.by}: "{ov.note}"
+                </div>
+              )}
+            </div>
           );
         })}
       </section>
@@ -1142,6 +1172,39 @@ function LiveMap({ fleet, clock, onSelect }) {
   );
 }
 
+function OverrideModal({ train, initialNote, onSave, onCancel }) {
+  const [note, setNote] = useState(initialNote || "");
+  return (
+    <div className="drawer-backdrop" onClick={onCancel}>
+      <div className="checklist-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="checklist-head">
+          <ClipboardList size={17} />
+          <div>
+            <div className="checklist-title">HOD OVERRIDE — {train.name} ({train.id})</div>
+            <div className="checklist-sub">
+              AI-suggested priority: {PRIORITY_META[train.priority].label}. Record why you're overriding the
+              suggested induction order — this is logged to the maintenance log for accountability.
+            </div>
+          </div>
+          <button className="icon-x" onClick={onCancel}><X size={18} /></button>
+        </div>
+        <div style={{ padding: "0 20px 6px" }}>
+          <textarea
+            rows={4}
+            placeholder="e.g. Spare rake unavailable tonight, holding this train in standby despite P1 flag..."
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            style={{ width: "100%" }}
+          />
+        </div>
+        <button className="approve-btn" disabled={!note.trim()} onClick={() => onSave(note.trim())}>
+          <ShieldCheck size={15} /> SAVE OVERRIDE NOTE
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Console({ user, onLogout }) {
   const [fleet, setFleet] = useState(buildFleet);
   const [filter, setFilter] = useState("ALL");
@@ -1151,12 +1214,21 @@ function Console({ user, onLogout }) {
   const [view, setView] = useState("FLEET"); // "FLEET" | "LOG"
   const [activityLog, setActivityLog] = useState([]);
   const [complaints, setComplaints] = useState(loadComplaints);
+  const [overrides, setOverrides] = useState({}); // trainId -> { note, by, ts }
+  const [overrideTarget, setOverrideTarget] = useState(null); // train being overridden
 
   const logEvent = (trainId, trainName, action, detail, by) => {
     setActivityLog((prev) => [
       { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, ts: new Date(), trainId, trainName, action, detail, by },
       ...prev,
     ]);
+  };
+
+  const saveOverride = (note) => {
+    if (!overrideTarget) return;
+    setOverrides((prev) => ({ ...prev, [overrideTarget.id]: { note, by: user.name, ts: new Date() } }));
+    logEvent(overrideTarget.id, overrideTarget.name, "HOD OVERRIDE", note, user.name);
+    setOverrideTarget(null);
   };
 
   useEffect(() => {
@@ -1276,8 +1348,9 @@ function Console({ user, onLogout }) {
         const riskScore = riskScoreFor(t);
         const priority = priorityFor(riskScore, t);
         const prediction = predictFor(t);
+        const reason = reasonForRisk(t);
         const live = getLivePosition(t, t.status, clock);
-        return { ...t, riskScore, priority, ...prediction, live };
+        return { ...t, riskScore, priority, reason, ...prediction, live };
       }),
     [withStatus, clock]
   );
@@ -1380,7 +1453,13 @@ function Console({ user, onLogout }) {
         {view === "LOG" ? (
           <MaintenanceLog fleet={withStatus} activityLog={activityLog} complaints={complaints} />
         ) : view === "PLAN" ? (
-          <InductionPlan fleet={enriched} onSelect={setSelectedId} />
+          <InductionPlan
+            fleet={enriched}
+            onSelect={setSelectedId}
+            isHod={isHod}
+            onOverride={setOverrideTarget}
+            overrides={overrides}
+          />
         ) : view === "MAP" ? (
           <LiveMap fleet={enriched} clock={clock} onSelect={setSelectedId} />
         ) : (
@@ -1455,6 +1534,14 @@ function Console({ user, onLogout }) {
         )}
       </main>
 
+      {overrideTarget && (
+        <OverrideModal
+          train={overrideTarget}
+          initialNote={overrides[overrideTarget.id]?.note}
+          onSave={saveOverride}
+          onCancel={() => setOverrideTarget(null)}
+        />
+      )}
       {selected && (
         <Drawer
           train={selected}
