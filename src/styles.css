@@ -33,7 +33,7 @@ body {
 /* ---------------- LOGIN ---------------- */
 .login-screen {
   display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-  padding: 24px; position: relative; padding-top: 200px;
+  padding: 24px; position: relative; padding-top: 224px;
 }
 .login-box {
   position: relative; z-index: 2; width: 100%; max-width: 420px;
@@ -53,6 +53,19 @@ body {
 }
 .star { animation: star-twinkle 3.2s ease-in-out infinite; }
 @keyframes star-twinkle { 0%, 100% { opacity: 0.15; } 50% { opacity: 1; } }
+
+.train-hero.blueprint { height: 234px; }
+.train-hero.blueprint svg text { letter-spacing: 0.5px; }
+.bp-sweep { animation: bp-sweep-move 5.5s linear infinite; mix-blend-mode: screen; }
+@keyframes bp-sweep-move {
+  from { transform: translateX(-160px); }
+  to   { transform: translateX(1700px); }
+}
+.bp-node { animation: bp-node-pulse 1.4s ease-in-out infinite; }
+@keyframes bp-node-pulse {
+  0%, 100% { opacity: 0.5; r: 3; }
+  50% { opacity: 1; r: 4.5; }
+}
 
 .emu-unit { animation: emu-run 12s linear infinite; }
 @keyframes emu-run {
@@ -235,22 +248,50 @@ body {
 .registry-row:last-child { border-bottom: none; }
 .mono { font-family: 'IBM Plex Mono', monospace; color: #A9C9BB; font-size: 14px; }
 .row-name { font-weight: 600; color: #EAF7F0; }
-.row-status { display: flex; align-items: center; font-size: 13px; font-weight: 700; letter-spacing: 0.3px; }
+.row-status { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; letter-spacing: 0.3px; }
 
 /* ---------------- SCHEMATIC ---------------- */
 .schematic { background: #0B1410; border: 1px solid #1F3B30; border-radius: 4px; padding: 16px; margin-bottom: 18px; }
 .section-title { font-size: 13.5px; color: #5C7A6C; letter-spacing: 0.8px; margin-bottom: 12px; font-weight: 700; }
 .yard { display: flex; flex-direction: column; gap: 10px; }
-.bay-row { display: flex; align-items: center; gap: 12px; }
+.yard.hud-grid {
+  position: relative; overflow: hidden; padding: 4px;
+  background-image:
+    repeating-linear-gradient(to right, rgba(31,59,48,0.5) 0 1px, transparent 1px 20px),
+    repeating-linear-gradient(to bottom, rgba(31,59,48,0.5) 0 1px, transparent 1px 20px);
+}
+.hud-sweep {
+  position: absolute; top: 0; bottom: 0; width: 90px; pointer-events: none;
+  background: linear-gradient(to right, transparent, rgba(57,230,139,0.1), transparent);
+  animation: hud-sweep-move 6s linear infinite; mix-blend-mode: screen;
+}
+@keyframes hud-sweep-move { from { left: -100px; } to { left: 105%; } }
+.bay-row { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
 .bay-label { width: 56px; font-size: 13px; color: #5C7A6C; letter-spacing: 0.5px; flex-shrink: 0; }
 .bay-track {
-  flex: 1; display: flex; gap: 6px; padding: 8px; background: #05080B;
+  flex: 1; display: flex; gap: 6px; padding: 8px; background: rgba(5,8,11,0.7);
   border-radius: 3px; border: 1px dashed #1A2620; flex-wrap: wrap;
 }
 .bay-block {
-  width: 34px; height: 30px; border: 1px solid; border-radius: 3px; background: transparent;
-  font-family: 'IBM Plex Mono', monospace; font-size: 13.5px; font-weight: 700; cursor: pointer;
+  width: 44px; height: 40px; border: 1px solid; border-radius: 3px; background: transparent;
+  font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  transition: transform 0.12s ease, box-shadow 0.18s ease;
 }
+.bay-block:hover { transform: scale(1.06); box-shadow: 0 0 10px currentColor; }
+
+/* ---------------- MINI BLIP (fleet rows + bay grid) ---------------- */
+.mini-blip { flex-shrink: 0; overflow: visible; }
+.mini-blip .mini-pulse { animation: blip-pulse-run 0.9s ease-in-out infinite; }
+.mini-blip.idle .mini-pulse { animation: blip-pulse-idle 2.4s ease-in-out infinite; }
+.mini-blip.halt .mini-pulse { animation: blip-pulse-halt 1.4s steps(2) infinite; }
+@keyframes blip-pulse-run { 0%, 100% { opacity: 0.5; r: 1.2; } 50% { opacity: 1; r: 2; } }
+@keyframes blip-pulse-idle { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.8; } }
+@keyframes blip-pulse-halt { 50% { opacity: 0.1; } }
+.mini-wheel { transform-box: fill-box; transform-origin: center; }
+.mini-blip.run .mini-wheel { animation: mini-wheel-spin 0.4s linear infinite; }
+.mini-blip.idle .mini-wheel { animation: mini-wheel-spin 1.6s linear infinite; }
+@keyframes mini-wheel-spin { to { transform: rotate(360deg); } }
 
 .chart-section { background: #0B1410; border: 1px solid #1F3B30; border-radius: 4px; padding: 16px; }
 
@@ -273,6 +314,51 @@ body {
   padding: 9px 12px; margin-bottom: 8px; font-size: 15px; font-weight: 700; letter-spacing: 0.4px;
 }
 .drawer-reason { font-size: 15px; color: #8AA599; line-height: 1.5; margin-bottom: 18px; }
+
+/* ---------------- TRAIN SIM PANEL (drawer live simulation) ---------------- */
+.sim-panel {
+  border: 1px solid #1F3B30; border-radius: 4px; overflow: hidden;
+  margin-bottom: 20px; background: #081310;
+}
+.sim-panel-head {
+  display: flex; align-items: center; gap: 6px; padding: 8px 12px;
+  font-size: 11.5px; letter-spacing: 1px; color: #5C7A6C; border-bottom: 1px solid #1F3B30;
+}
+.sim-status { margin-left: auto; font-weight: 700; letter-spacing: 1px; }
+.sim-demo-badge {
+  margin-left: 10px; font-size: 9px; letter-spacing: 0.5px; color: #FFC93B;
+  border: 1px solid rgba(255,201,59,0.4); background: rgba(255,201,59,0.08);
+  padding: 2px 6px; border-radius: 3px; white-space: nowrap;
+}
+.sim-svg { width: 100%; height: auto; display: block; }
+
+.sim-unit.running { animation: sim-run 2.4s ease-in-out infinite; }
+@keyframes sim-run {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(6px); }
+}
+.sim-unit.idle { animation: sim-idle-drift 4s ease-in-out infinite; }
+@keyframes sim-idle-drift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(2px); }
+}
+.sim-unit.halted { animation: sim-halt-flicker 1.6s steps(2) infinite; }
+@keyframes sim-halt-flicker { 50% { opacity: 0.55; } }
+
+.sim-wheel { transform-box: fill-box; transform-origin: center; }
+.sim-unit.running .sim-wheel { animation: sim-wheel-spin 0.45s linear infinite; }
+.sim-unit.idle .sim-wheel { animation: sim-wheel-spin 1.4s linear infinite; }
+@keyframes sim-wheel-spin { to { transform: rotate(360deg); } }
+
+.sim-spark {
+  filter: drop-shadow(0 0 5px #39E68B); opacity: 0;
+  animation: sim-spark-flicker 3s steps(1) infinite;
+}
+@keyframes sim-spark-flicker {
+  0%, 85%, 100% { opacity: 0; }
+  86%, 89% { opacity: 1; }
+  90% { opacity: 0; }
+}
 
 .drawer-section-title { font-size: 13px; color: #5C7A6C; letter-spacing: 0.6px; font-weight: 700; margin: 14px 0 8px; border-top: 1px solid #1A2620; padding-top: 14px; }
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

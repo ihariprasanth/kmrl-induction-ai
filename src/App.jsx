@@ -565,141 +565,126 @@ function ComplaintPortal({ presetTrainId }) {
   );
 }
 
+
 /* =========================================================================
-   TRAIN HERO — animated elevated-metro electric train scene (login backdrop)
+   TRAIN HERO — advanced blueprint / schematic HUD train (login backdrop)
 ========================================================================= */
 function TrainHero() {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 400);
+    return () => clearInterval(id);
+  }, []);
+
+  const speed = (78 + 6 * Math.sin(tick / 6)).toFixed(1);
+  const trac = (91 + 4 * Math.sin(tick / 4 + 1)).toFixed(0);
+  const posX = (1200 + 300 * Math.sin(tick / 20)).toFixed(0);
+
   return (
-    <div className="train-hero">
+    <div className="train-hero blueprint">
       <svg viewBox="0 0 1600 260" preserveAspectRatio="xMidYMax slice">
         <defs>
-          <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#081410" />
+          <pattern id="bpGridMinor" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M20 0H0V20" fill="none" stroke="#123024" strokeWidth="0.5" />
+          </pattern>
+          <pattern id="bpGridMajor" width="100" height="100" patternUnits="userSpaceOnUse">
+            <rect width="100" height="100" fill="url(#bpGridMinor)" />
+            <path d="M100 0H0V100" fill="none" stroke="#1B4A38" strokeWidth="1" />
+          </pattern>
+          <linearGradient id="bpSky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#061410" />
             <stop offset="100%" stopColor="#05080B" />
           </linearGradient>
-          <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#E9F7F0" />
-            <stop offset="38%" stopColor="#CFE9DC" />
-            <stop offset="40%" stopColor="#123024" />
-            <stop offset="78%" stopColor="#0D231B" />
-            <stop offset="100%" stopColor="#081512" />
-          </linearGradient>
-          <linearGradient id="glassGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#8FF0C8" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#123024" stopOpacity="0.95" />
-          </linearGradient>
-          <radialGradient id="beamGrad" cx="0" cy="0.5" r="0.5">
-            <stop offset="0%" stopColor="#EAFBF2" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#EAFBF2" stopOpacity="0" />
-          </radialGradient>
+          <filter id="bpGlow" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="3.2" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
         </defs>
 
-        <rect x="0" y="0" width="1600" height="260" fill="url(#skyGrad)" />
+        <rect x="0" y="0" width="1600" height="260" fill="url(#bpSky)" />
+        <rect x="0" y="0" width="1600" height="260" fill="url(#bpGridMajor)" />
 
-        {/* stars */}
-        {[...Array(30)].map((_, i) => (
-          <circle
-            key={i}
-            className="star"
-            cx={(i * 53) % 1600}
-            cy={18 + ((i * 37) % 70)}
-            r={i % 5 === 0 ? 1.6 : 1}
-            fill="#9FE8C6"
-            style={{ animationDelay: `${(i % 7) * 0.4}s` }}
-          />
-        ))}
+        {/* radar / oscilloscope sweep */}
+        <rect className="bp-sweep" x="0" y="0" width="140" height="260" fill="url(#bpSweepGrad)" />
+        <defs>
+          <linearGradient id="bpSweepGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#39E68B" stopOpacity="0" />
+            <stop offset="100%" stopColor="#39E68B" stopOpacity="0.14" />
+          </linearGradient>
+        </defs>
 
-        {/* city skyline silhouette */}
-        <g fill="#0B1A15">
-          {[...Array(18)].map((_, i) => {
-            const w = 46 + (i % 4) * 18;
-            const h = 30 + ((i * 29) % 70);
-            const x = i * 92;
-            return <rect key={i} x={x} y={148 - h} width={w} height={h} />;
-          })}
+        {/* HUD corner brackets */}
+        <g stroke="#39E68B" strokeWidth="2" fill="none" opacity="0.7">
+          <path d="M14,14 L14,40 M14,14 L40,14" />
+          <path d="M1586,14 L1586,40 M1586,14 L1560,14" />
+          <path d="M14,246 L14,220 M14,246 L40,246" />
+          <path d="M1586,246 L1586,220 M1586,246 L1560,246" />
         </g>
 
-        {/* elevated viaduct pillars */}
-        <g fill="#111F1A" stroke="#1F3B30" strokeWidth="1">
-          {[...Array(9)].map((_, i) => (
-            <rect key={i} x={40 + i * 190} y="196" width="16" height="50" />
-          ))}
-        </g>
-        <rect x="0" y="192" width="1600" height="8" fill="#152922" />
+        {/* track centerline (schematic) */}
+        <line x1="0" y1="205" x2="1600" y2="205" stroke="#1F3B30" strokeWidth="1" strokeDasharray="2 6" />
 
-        {/* rails */}
-        <rect x="0" y="200" width="1600" height="2.5" fill="#2A5240" />
-        <rect x="0" y="210" width="1600" height="2.5" fill="#2A5240" />
-
-        {/* catenary poles + OHE wire */}
-        <g stroke="#22402F" strokeWidth="2">
-          {[...Array(9)].map((_, i) => (
-            <line key={i} x1={60 + i * 190} y1="196" x2={60 + i * 190} y2="46" />
-          ))}
-        </g>
-        <line x1="0" y1="50" x2="1600" y2="50" stroke="#2C5A42" strokeWidth="2" />
-
-        {/* ---- moving EMU train unit ---- */}
-        <g className="emu-unit">
-          {/* rear coach (partial, for continuity) */}
-          <g transform="translate(-190,0)">
-            <rect x="0" y="95" width="210" height="78" rx="14" fill="url(#bodyGrad)" stroke="#0A1712" strokeWidth="2" />
-            <rect x="14" y="118" width="182" height="30" rx="4" fill="url(#glassGrad)" />
-            <rect x="0" y="150" width="210" height="8" fill="#39E68B" opacity="0.55" />
-          </g>
-
-          {/* main coach body */}
-          <g>
-            {/* connecting gangway shadow */}
-            <rect x="-14" y="130" width="16" height="34" fill="#081512" />
-
-            {/* body shell with sloped cab nose */}
-            <path
-              d="M0,173 L0,118 Q0,96 24,95 L300,95 Q322,95 336,109 L378,150
-                 Q384,156 384,164 L384,173 Z"
-              fill="url(#bodyGrad)" stroke="#0A1712" strokeWidth="2"
-            />
-            {/* front cab windshield */}
-            <path d="M312,109 L344,112 Q362,124 372,148 L336,148 Q322,140 312,124 Z"
-              fill="url(#glassGrad)" stroke="#0A1712" strokeWidth="1.5" />
-
-            {/* passenger windows row */}
+        {/* ---- moving wireframe EMU train unit ---- */}
+        <g className="emu-unit" filter="url(#bpGlow)">
+          <g stroke="#39E68B" strokeWidth="1.6" fill="none" opacity="0.9">
+            {/* body shell wireframe */}
+            <path d="M0,173 L0,118 Q0,96 24,95 L300,95 Q322,95 336,109 L378,150
+                     Q384,156 384,164 L384,173 Z" />
+            {/* front windshield */}
+            <path d="M312,109 L344,112 Q362,124 372,148 L336,148 Q322,140 312,124 Z" />
+            {/* passenger window grid */}
             {[...Array(5)].map((_, i) => (
-              <rect key={i} x={16 + i * 54} y="118" width="42" height="30" rx="4" fill="url(#glassGrad)" />
+              <rect key={i} x={16 + i * 54} y="118" width="42" height="30" rx="4" />
             ))}
-
-            {/* door outlines */}
-            <rect x="70" y="118" width="3" height="52" fill="#0A1712" opacity="0.6" />
-            <rect x="232" y="118" width="3" height="52" fill="#0A1712" opacity="0.6" />
-
-            {/* KMRL livery stripe + text */}
-            <rect x="0" y="150" width="384" height="8" fill="#39E68B" opacity="0.6" />
-            <text x="150" y="167" fill="#39E68B" fontSize="11" fontWeight="700" letterSpacing="2" fontFamily="'Space Grotesk',sans-serif">KMRL</text>
-
-            {/* headlight + beam */}
-            <ellipse className="headlight-beam" cx="380" cy="150" rx="120" ry="26" fill="url(#beamGrad)" />
-            <circle cx="378" cy="150" r="5" fill="#EAFBF2" />
-            {/* tail / marker light */}
-            <circle className="taillight" cx="6" cy="150" r="4" fill="#FF4D4D" />
-
+            {/* livery / dimension line */}
+            <line x1="0" y1="150" x2="384" y2="150" strokeDasharray="4 4" opacity="0.6" />
             {/* pantograph */}
-            <path className="panto-arm" d="M150,95 L150,72 L172,60 L172,50" fill="none" stroke="#204A38" strokeWidth="3" />
-            <path d="M150,95 L150,72 L128,60 L128,50" fill="none" stroke="#204A38" strokeWidth="3" />
-            <rect x="120" y="46" width="60" height="5" rx="2" fill="#2C5A42" />
-            <circle className="panto-spark" cx="150" cy="49" r="6" fill="#BFF7DD" />
-
-            {/* bogies */}
-            <g className="bogie" transform="translate(60,164)">
-              <rect x="-24" y="0" width="48" height="14" rx="3" fill="#0C1A15" />
-              <circle className="wheel" cx="-13" cy="14" r="10" />
-              <circle className="wheel" cx="13" cy="14" r="10" />
-            </g>
-            <g className="bogie" transform="translate(300,164)">
-              <rect x="-24" y="0" width="48" height="14" rx="3" fill="#0C1A15" />
-              <circle className="wheel" cx="-13" cy="14" r="10" />
-              <circle className="wheel" cx="13" cy="14" r="10" />
-            </g>
+            <path d="M150,95 L150,72 L172,60 L172,50 M150,95 L150,72 L128,60 L128,50" />
+            <rect x="120" y="46" width="60" height="5" rx="2" />
           </g>
+
+          {/* joint / reference nodes */}
+          <circle cx="0" cy="150" r="3" fill="#39E68B" />
+          <circle cx="384" cy="150" r="3" fill="#39E68B" />
+          <circle cx="150" cy="50" r="3" fill="#39E68B" className="bp-node" />
+          <circle className="panto-spark" cx="150" cy="49" r="6" fill="#BFF7DD" />
+          <circle className="taillight" cx="4" cy="150" r="3.5" fill="#FF4D4D" />
+
+          {/* bogies (wireframe wheels) */}
+          <g transform="translate(60,164)">
+            <rect x="-24" y="0" width="48" height="14" rx="3" fill="none" stroke="#39E68B" strokeWidth="1.4" />
+            <circle className="wheel" cx="-13" cy="14" r="10" fill="none" stroke="#39E68B" strokeWidth="1.4" />
+            <circle className="wheel" cx="13" cy="14" r="10" fill="none" stroke="#39E68B" strokeWidth="1.4" />
+          </g>
+          <g transform="translate(300,164)">
+            <rect x="-24" y="0" width="48" height="14" rx="3" fill="none" stroke="#39E68B" strokeWidth="1.4" />
+            <circle className="wheel" cx="-13" cy="14" r="10" fill="none" stroke="#39E68B" strokeWidth="1.4" />
+            <circle className="wheel" cx="13" cy="14" r="10" fill="none" stroke="#39E68B" strokeWidth="1.4" />
+          </g>
+
+          {/* leader-line callouts */}
+          <g fontFamily="'IBM Plex Mono',monospace" fontSize="9" fill="#39E68B" opacity="0.85">
+            <line x1="150" y1="46" x2="150" y2="20" stroke="#1F3B30" strokeWidth="1" />
+            <text x="98" y="16">PANTOGRAPH ASSY // OHE-750VDC</text>
+
+            <line x1="330" y1="108" x2="360" y2="80" stroke="#1F3B30" strokeWidth="1" />
+            <text x="300" y="74">CAB-A // TRACTION CTRL</text>
+
+            <line x1="60" y1="178" x2="60" y2="200" stroke="#1F3B30" strokeWidth="1" />
+            <text x="8" y="212">BOGIE-01</text>
+
+            <line x1="300" y1="178" x2="300" y2="200" stroke="#1F3B30" strokeWidth="1" />
+            <text x="272" y="212">BOGIE-02</text>
+          </g>
+        </g>
+
+        {/* live schematic data readout */}
+        <g fontFamily="'IBM Plex Mono',monospace" fontSize="11" fill="#39E68B" opacity="0.9">
+          <text x="20" y="230">UNIT KMRL-EMU // VEL {speed} KM/H // TRACTION {trac}%</text>
+          <text x="1240" y="230" textAnchor="end">POS X:{posX} // OHE 750VDC // STATUS NOMINAL</text>
         </g>
       </svg>
       <div className="train-hero-fade" />
@@ -889,12 +874,151 @@ function ChecklistModal({ title, subtitle, items, confirmLabel, onConfirm, onCan
 }
 
 /* =========================================================================
+   MINI BLIP — tiny animated train HUD indicator (fleet rows + bay grid)
+========================================================================= */
+function MiniBlip({ color, mode = "still" }) {
+  return (
+    <svg viewBox="0 0 20 14" className={`mini-blip ${mode}`} width="20" height="14">
+      <rect x="1" y="3" width="14" height="7" rx="2" fill="none" stroke={color} strokeWidth="1.2" />
+      <circle className="mini-wheel" cx="4" cy="11" r="1.5" fill="none" stroke={color} strokeWidth="1" />
+      <circle className="mini-wheel" cx="12" cy="11" r="1.5" fill="none" stroke={color} strokeWidth="1" />
+      <circle className="mini-pulse" cx="17" cy="5.5" r="1.4" fill={color} />
+    </svg>
+  );
+}
+
+/* =========================================================================
+   TRAIN SIM PANEL — live blueprint-HUD train simulation inside the drawer
+   Driven by the actual train's health data (not decorative-only).
+========================================================================= */
+function TrainSimPanel({ train, status, sig }) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 350);
+    return () => clearInterval(id);
+  }, []);
+
+  const running = status === "ACTIVE";
+  const halted = status === "MAINTENANCE";
+  const motorHealth = train.tractionMotorHealth ?? 90;
+  const brakeWear = train.brakePadWear ?? 15;
+  const battery = train.batteryHealth ?? 90;
+
+  // ---- DEMO MODE -----------------------------------------------------
+  // Motor / Brake / Battery % above are the REAL per-train sensor fields
+  // (train.tractionMotorHealth, train.brakePadWear, train.batteryHealth)
+  // pulled straight from Supabase — those are not faked.
+  // Speed & RPM below ARE demo-simulated: they're derived FROM those
+  // sensor values (not random), but there's no live telemetry feed yet.
+  // To go from demo → real: replace this block with a subscription to
+  // your actual sensor/telemetry table (e.g. Supabase realtime channel
+  // on a `train_telemetry` table) and set speed/rpm straight from it.
+  const maxSpeed = 60 + (motorHealth / 100) * 30;      // weaker motor → lower ceiling
+  const brakeDrag = (brakeWear / 100) * 12;             // worn brakes → shaves off top speed
+  const jitter = Math.sin(tick / 5) * (motorHealth / 100) * 4;
+  const targetSpeed = running ? maxSpeed - brakeDrag + jitter : halted ? 0 : (maxSpeed / 4) + jitter;
+  const speed = Math.max(0, targetSpeed).toFixed(0);
+  const rpm = running ? (motorHealth * 27 + jitter * 15).toFixed(0) : "0";
+  const motorColor = motorHealth > 80 ? "#39E68B" : motorHealth > 50 ? "#FFC93B" : "#FF4D4D";
+  const brakeColor = brakeWear > 60 ? "#FF4D4D" : brakeWear > 30 ? "#FFC93B" : "#39E68B";
+
+  // simple speedometer arc: 0-100 mapped to -120deg..120deg
+  const arcPct = Math.min(100, Number(speed));
+  const arcDeg = -120 + (arcPct / 100) * 240;
+  const arcRad = (arcDeg * Math.PI) / 180;
+  const needleX = 60 + 34 * Math.sin(arcRad);
+  const needleY = 60 - 34 * Math.cos(arcRad);
+
+  return (
+    <div className="sim-panel">
+      <div className="sim-panel-head">
+        <Radio size={12} /> LIVE UNIT SIMULATION — {train.id}
+        <span className="sim-demo-badge">DEMO MODE — SPEED/RPM MODELED FROM SENSOR %</span>
+        <span className="sim-status" style={{ color: sig.color }}>{halted ? "HALTED" : running ? "IN MOTION" : "IDLE"}</span>
+      </div>
+
+      <svg viewBox="0 0 760 150" className="sim-svg">
+        <defs>
+          <pattern id={`simGrid-${train.id}`} width="18" height="18" patternUnits="userSpaceOnUse">
+            <path d="M18 0H0V18" fill="none" stroke="#123024" strokeWidth="0.5" />
+          </pattern>
+          <filter id={`simGlow-${train.id}`} x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="2.6" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        <rect x="0" y="0" width="760" height="150" fill="#081310" />
+        <rect x="0" y="0" width="760" height="150" fill={`url(#simGrid-${train.id})`} />
+        <line x1="0" y1="128" x2="760" y2="128" stroke="#1F3B30" strokeWidth="1" strokeDasharray="2 6" />
+
+        {/* HUD corner brackets */}
+        <g stroke={sig.color} strokeWidth="1.6" fill="none" opacity="0.55">
+          <path d="M8,8 L8,24 M8,8 L24,8" />
+          <path d="M752,8 L752,24 M752,8 L736,8" />
+          <path d="M8,142 L8,126 M8,142 L24,142" />
+          <path d="M752,142 L752,126 M752,142 L736,142" />
+        </g>
+
+        {/* moving wireframe train, position depends on running state */}
+        <g
+          className={halted ? "sim-unit halted" : running ? "sim-unit running" : "sim-unit idle"}
+          filter={`url(#simGlow-${train.id})`}
+        >
+          <g stroke={halted ? "#FF4D4D" : "#39E68B"} strokeWidth="1.4" fill="none" opacity="0.95">
+            <path d="M0,95 L0,60 Q0,44 16,43 L150,43 Q164,43 174,53 L196,80
+                     Q200,84 200,90 L200,95 Z" />
+            {[...Array(3)].map((_, i) => (
+              <rect key={i} x={10 + i * 42} y="55" width="32" height="20" rx="3" />
+            ))}
+            <path d="M78,43 L78,28 L92,20 L92,12 M78,43 L78,28 L64,20 L64,12" />
+            <rect x="58" y="9" width="38" height="3.5" rx="1.5" />
+          </g>
+          <circle className="sim-spark" cx="78" cy="11" r="4" fill="#BFF7DD" />
+          <circle cx="190" cy="90" r="4" fill={halted ? "#FF4D4D" : "#39E68B"} />
+          <g transform="translate(30,95)">
+            <circle className="sim-wheel" cx="0" cy="10" r="7" fill="none" stroke={brakeColor} strokeWidth="1.4" />
+            <circle className="sim-wheel" cx="22" cy="10" r="7" fill="none" stroke={brakeColor} strokeWidth="1.4" />
+          </g>
+          <g transform="translate(148,95)">
+            <circle className="sim-wheel" cx="0" cy="10" r="7" fill="none" stroke={brakeColor} strokeWidth="1.4" />
+            <circle className="sim-wheel" cx="22" cy="10" r="7" fill="none" stroke={brakeColor} strokeWidth="1.4" />
+          </g>
+        </g>
+
+        {/* speedometer gauge */}
+        <g transform="translate(600,0)">
+          <path d="M26,84 A34,34 0 1 1 94,84" fill="none" stroke="#1F3B30" strokeWidth="6" />
+          <path
+            d="M26,84 A34,34 0 1 1 94,84"
+            fill="none" stroke={sig.color} strokeWidth="6"
+            strokeDasharray={`${(arcPct / 100) * 160} 400`}
+          />
+          <line x1="60" y1="84" x2={needleX} y2={needleY} stroke="#EAF7F0" strokeWidth="2" />
+          <circle cx="60" cy="84" r="3" fill="#EAF7F0" />
+          <text x="60" y="106" textAnchor="middle" fontFamily="'IBM Plex Mono',monospace" fontSize="12" fill="#EAF7F0">{speed}</text>
+          <text x="60" y="118" textAnchor="middle" fontFamily="'IBM Plex Mono',monospace" fontSize="8" fill="#5C7A6C">KM/H</text>
+        </g>
+
+        {/* live readouts */}
+        <g fontFamily="'IBM Plex Mono',monospace" fontSize="10" fill="#39E68B">
+          <text x="10" y="140">MOTOR {motorHealth}%</text>
+          <text x="120" y="140" fill={brakeColor}>BRAKE {brakeWear}%</text>
+          <text x="230" y="140">BATT {battery}%</text>
+          <text x="330" y="140">RPM {rpm}</text>
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+/* =========================================================================
    TRAIN DETAIL DRAWER
 ========================================================================= */
 function Drawer({ train, isHod, approverName, complaints, onChange, onApprove, onRevoke, onClose, onLog, onFinalize }) {
   const [modal, setModal] = useState(null); // null | "approve" | "checks"
   const status = deriveStatus(train);
   const sig = SIGNAL[status];
+
   const { link: qrLink, qrImg } = qrInfoFor(train.id);
 
   const trainComplaints = (complaints || []).slice().sort((a, b) => new Date(b.ts) - new Date(a.ts));
@@ -940,6 +1064,8 @@ function Drawer({ train, isHod, approverName, complaints, onChange, onApprove, o
           <span style={{ color: sig.color }}>{sig.label}</span>
         </div>
         <div className="drawer-reason">{reasonFor(train, status)}</div>
+
+        <TrainSimPanel train={train} status={status} sig={sig} />
 
         <div className="drawer-section-title"><Zap size={12} /> TRACTION &amp; ELECTRICAL HEALTH</div>
         <div className="health-grid">
@@ -2002,6 +2128,7 @@ function Console({ user, onLogout }) {
                       {openCount > 0 && <span className="complaint-badge">⚠ {openCount}</span>}
                     </span>
                     <span className="row-status" style={{ color: sig.color }}>
+                      <MiniBlip color={sig.color} mode={t.status === "ACTIVE" ? "run" : t.status === "MAINTENANCE" ? "halt" : "idle"} />
                       <span className="led sm" style={{ background: sig.color }} /> {sig.label}
                     </span>
                     <span className="mono">{t.mileageKm.toLocaleString()} km</span>
@@ -2016,7 +2143,8 @@ function Console({ user, onLogout }) {
 
             <section className="schematic">
               <div className="section-title">DEPOT INTERLOCKING SCHEMATIC — BAY OCCUPANCY</div>
-              <div className="yard">
+              <div className="yard hud-grid">
+                <div className="hud-sweep" />
                 {Object.entries(bays).map(([bay, trains]) => (
                   <div className="bay-row" key={bay}>
                     <div className="bay-label">BAY {bay}</div>
@@ -2029,6 +2157,7 @@ function Console({ user, onLogout }) {
                           onClick={() => setSelectedId(t.id)}
                           title={t.name}
                         >
+                          <MiniBlip color={SIGNAL[t.status].color} mode={t.status === "ACTIVE" ? "run" : t.status === "MAINTENANCE" ? "halt" : "idle"} />
                           {String(t.number).padStart(2, "0")}
                         </button>
                       ))}
