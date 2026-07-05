@@ -9,6 +9,7 @@ import {
   CalendarClock, Send,
 } from "lucide-react";
 import { supabase } from "./lib/supabaseClient";
+import { sfx } from "./lib/sfx";
 
 /* =========================================================================
    FLEET DATA
@@ -565,6 +566,148 @@ function ComplaintPortal({ presetTrainId }) {
 }
 
 /* =========================================================================
+   TRAIN HERO — animated elevated-metro electric train scene (login backdrop)
+========================================================================= */
+function TrainHero() {
+  return (
+    <div className="train-hero">
+      <svg viewBox="0 0 1600 260" preserveAspectRatio="xMidYMax slice">
+        <defs>
+          <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#081410" />
+            <stop offset="100%" stopColor="#05080B" />
+          </linearGradient>
+          <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#E9F7F0" />
+            <stop offset="38%" stopColor="#CFE9DC" />
+            <stop offset="40%" stopColor="#123024" />
+            <stop offset="78%" stopColor="#0D231B" />
+            <stop offset="100%" stopColor="#081512" />
+          </linearGradient>
+          <linearGradient id="glassGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#8FF0C8" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#123024" stopOpacity="0.95" />
+          </linearGradient>
+          <radialGradient id="beamGrad" cx="0" cy="0.5" r="0.5">
+            <stop offset="0%" stopColor="#EAFBF2" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#EAFBF2" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        <rect x="0" y="0" width="1600" height="260" fill="url(#skyGrad)" />
+
+        {/* stars */}
+        {[...Array(30)].map((_, i) => (
+          <circle
+            key={i}
+            className="star"
+            cx={(i * 53) % 1600}
+            cy={18 + ((i * 37) % 70)}
+            r={i % 5 === 0 ? 1.6 : 1}
+            fill="#9FE8C6"
+            style={{ animationDelay: `${(i % 7) * 0.4}s` }}
+          />
+        ))}
+
+        {/* city skyline silhouette */}
+        <g fill="#0B1A15">
+          {[...Array(18)].map((_, i) => {
+            const w = 46 + (i % 4) * 18;
+            const h = 30 + ((i * 29) % 70);
+            const x = i * 92;
+            return <rect key={i} x={x} y={148 - h} width={w} height={h} />;
+          })}
+        </g>
+
+        {/* elevated viaduct pillars */}
+        <g fill="#111F1A" stroke="#1F3B30" strokeWidth="1">
+          {[...Array(9)].map((_, i) => (
+            <rect key={i} x={40 + i * 190} y="196" width="16" height="50" />
+          ))}
+        </g>
+        <rect x="0" y="192" width="1600" height="8" fill="#152922" />
+
+        {/* rails */}
+        <rect x="0" y="200" width="1600" height="2.5" fill="#2A5240" />
+        <rect x="0" y="210" width="1600" height="2.5" fill="#2A5240" />
+
+        {/* catenary poles + OHE wire */}
+        <g stroke="#22402F" strokeWidth="2">
+          {[...Array(9)].map((_, i) => (
+            <line key={i} x1={60 + i * 190} y1="196" x2={60 + i * 190} y2="46" />
+          ))}
+        </g>
+        <line x1="0" y1="50" x2="1600" y2="50" stroke="#2C5A42" strokeWidth="2" />
+
+        {/* ---- moving EMU train unit ---- */}
+        <g className="emu-unit">
+          {/* rear coach (partial, for continuity) */}
+          <g transform="translate(-190,0)">
+            <rect x="0" y="95" width="210" height="78" rx="14" fill="url(#bodyGrad)" stroke="#0A1712" strokeWidth="2" />
+            <rect x="14" y="118" width="182" height="30" rx="4" fill="url(#glassGrad)" />
+            <rect x="0" y="150" width="210" height="8" fill="#39E68B" opacity="0.55" />
+          </g>
+
+          {/* main coach body */}
+          <g>
+            {/* connecting gangway shadow */}
+            <rect x="-14" y="130" width="16" height="34" fill="#081512" />
+
+            {/* body shell with sloped cab nose */}
+            <path
+              d="M0,173 L0,118 Q0,96 24,95 L300,95 Q322,95 336,109 L378,150
+                 Q384,156 384,164 L384,173 Z"
+              fill="url(#bodyGrad)" stroke="#0A1712" strokeWidth="2"
+            />
+            {/* front cab windshield */}
+            <path d="M312,109 L344,112 Q362,124 372,148 L336,148 Q322,140 312,124 Z"
+              fill="url(#glassGrad)" stroke="#0A1712" strokeWidth="1.5" />
+
+            {/* passenger windows row */}
+            {[...Array(5)].map((_, i) => (
+              <rect key={i} x={16 + i * 54} y="118" width="42" height="30" rx="4" fill="url(#glassGrad)" />
+            ))}
+
+            {/* door outlines */}
+            <rect x="70" y="118" width="3" height="52" fill="#0A1712" opacity="0.6" />
+            <rect x="232" y="118" width="3" height="52" fill="#0A1712" opacity="0.6" />
+
+            {/* KMRL livery stripe + text */}
+            <rect x="0" y="150" width="384" height="8" fill="#39E68B" opacity="0.6" />
+            <text x="150" y="167" fill="#39E68B" fontSize="11" fontWeight="700" letterSpacing="2" fontFamily="'Space Grotesk',sans-serif">KMRL</text>
+
+            {/* headlight + beam */}
+            <ellipse className="headlight-beam" cx="380" cy="150" rx="120" ry="26" fill="url(#beamGrad)" />
+            <circle cx="378" cy="150" r="5" fill="#EAFBF2" />
+            {/* tail / marker light */}
+            <circle className="taillight" cx="6" cy="150" r="4" fill="#FF4D4D" />
+
+            {/* pantograph */}
+            <path className="panto-arm" d="M150,95 L150,72 L172,60 L172,50" fill="none" stroke="#204A38" strokeWidth="3" />
+            <path d="M150,95 L150,72 L128,60 L128,50" fill="none" stroke="#204A38" strokeWidth="3" />
+            <rect x="120" y="46" width="60" height="5" rx="2" fill="#2C5A42" />
+            <circle className="panto-spark" cx="150" cy="49" r="6" fill="#BFF7DD" />
+
+            {/* bogies */}
+            <g className="bogie" transform="translate(60,164)">
+              <rect x="-24" y="0" width="48" height="14" rx="3" fill="#0C1A15" />
+              <circle className="wheel" cx="-13" cy="14" r="10" />
+              <circle className="wheel" cx="13" cy="14" r="10" />
+            </g>
+            <g className="bogie" transform="translate(300,164)">
+              <rect x="-24" y="0" width="48" height="14" rx="3" fill="#0C1A15" />
+              <circle className="wheel" cx="-13" cy="14" r="10" />
+              <circle className="wheel" cx="13" cy="14" r="10" />
+            </g>
+          </g>
+        </g>
+      </svg>
+      <div className="train-hero-fade" />
+    </div>
+  );
+}
+
+/* =========================================================================
    LOGIN
 ========================================================================= */
 function Login({ onLogin }) {
@@ -582,8 +725,10 @@ function Login({ onLogin }) {
 
   const submit = async (e) => {
     e.preventDefault();
+    sfx.submit();
     if (!uname.trim() || !pwd.trim()) {
       setErr("CREDENTIALS REQUIRED");
+      sfx.error();
       return;
     }
     setErr("");
@@ -598,18 +743,28 @@ function Login({ onLogin }) {
     setChecking(false);
     if (error) {
       setErr("LOGIN CHECK FAILED — CHECK SUPABASE CONNECTION");
+      sfx.error();
       return;
     }
     if (!data) {
       setErr("INVALID USERNAME / PASSWORD FOR THIS ROLE");
+      sfx.error();
       return;
     }
+    sfx.success();
     onLogin({ role: data.role, name: data.name });
+  };
+
+  const chooseRole = (r) => {
+    if (r === role) return;
+    sfx.tabSwitch();
+    setRole(r);
   };
 
   return (
     <div className="scada-root login-screen">
       <div className="scanlines" />
+      <TrainHero />
       <div className="login-box">
         <div className="term-header">
           <Radio size={16} />
@@ -626,10 +781,18 @@ function Login({ onLogin }) {
         </div>
 
         <div className="role-tabs">
-          <button className={role === "HOD" ? "role-tab on" : "role-tab"} onClick={() => setRole("HOD")}>
+          <button
+            className={role === "HOD" ? "role-tab on" : "role-tab"}
+            onClick={() => chooseRole("HOD")}
+            onMouseEnter={sfx.hover}
+          >
             HEAD OF DEPARTMENT
           </button>
-          <button className={role === "OPERATOR" ? "role-tab on" : "role-tab"} onClick={() => setRole("OPERATOR")}>
+          <button
+            className={role === "OPERATOR" ? "role-tab on" : "role-tab"}
+            onClick={() => chooseRole("OPERATOR")}
+            onMouseEnter={sfx.hover}
+          >
             SERVICE / OPERATOR
           </button>
         </div>
@@ -637,14 +800,14 @@ function Login({ onLogin }) {
         <form onSubmit={submit} className="login-form">
           <div className="term-field">
             <User size={14} />
-            <input placeholder="OPERATOR ID" value={uname} onChange={(e) => setUname(e.target.value)} />
+            <input placeholder="OPERATOR ID" value={uname} onChange={(e) => setUname(e.target.value)} onFocus={sfx.focus} />
           </div>
           <div className="term-field">
             <Lock size={14} />
-            <input type="password" placeholder="ACCESS CODE" value={pwd} onChange={(e) => setPwd(e.target.value)} />
+            <input type="password" placeholder="ACCESS CODE" value={pwd} onChange={(e) => setPwd(e.target.value)} onFocus={sfx.focus} />
           </div>
           {err && <div className="term-err"><AlertTriangle size={13} /> {err}</div>}
-          <button className="term-submit" type="submit" disabled={checking}>
+          <button className="term-submit" type="submit" disabled={checking} onMouseEnter={sfx.hover}>
             &gt; {checking ? "CHECKING..." : "AUTHENTICATE"} <ChevronRight size={15} />
           </button>
         </form>

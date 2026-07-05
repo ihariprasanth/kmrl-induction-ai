@@ -31,11 +31,61 @@ body {
 }
 
 /* ---------------- LOGIN ---------------- */
-.login-screen { display: flex; align-items: center; justify-content: center; padding: 24px; }
+.login-screen {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  padding: 24px; position: relative; padding-top: 200px;
+}
 .login-box {
   position: relative; z-index: 2; width: 100%; max-width: 420px;
   background: #0B1410; border: 1px solid #1F3B30; border-radius: 4px;
   padding: 0 0 24px; box-shadow: 0 0 60px rgba(57,230,139,0.06);
+}
+
+/* ---------------- TRAIN HERO (login backdrop scene) ---------------- */
+.train-hero {
+  position: absolute; top: 0; left: 0; right: 0; height: 210px;
+  overflow: hidden; z-index: 0; pointer-events: none;
+}
+.train-hero svg { width: 100%; height: 100%; display: block; }
+.train-hero-fade {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 90px;
+  background: linear-gradient(to bottom, transparent, #05080B 92%);
+}
+.star { animation: star-twinkle 3.2s ease-in-out infinite; }
+@keyframes star-twinkle { 0%, 100% { opacity: 0.15; } 50% { opacity: 1; } }
+
+.emu-unit { animation: emu-run 12s linear infinite; }
+@keyframes emu-run {
+  from { transform: translateX(-32%); }
+  to   { transform: translateX(132%); }
+}
+
+.wheel {
+  fill: #0C1A15; stroke: #2A5240; stroke-width: 2;
+  transform-box: fill-box; transform-origin: center;
+  animation: wheel-spin 0.55s linear infinite;
+}
+@keyframes wheel-spin { to { transform: rotate(360deg); } }
+
+.headlight-beam { animation: beam-pulse 2.6s ease-in-out infinite; }
+@keyframes beam-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.7; } }
+
+.taillight {
+  filter: drop-shadow(0 0 4px #FF4D4D);
+  animation: tail-blink 1.3s steps(2) infinite;
+}
+@keyframes tail-blink { 50% { opacity: 0.15; } }
+
+.panto-spark {
+  filter: drop-shadow(0 0 6px #39E68B);
+  opacity: 0;
+  animation: spark-flicker 3.4s steps(1) infinite;
+}
+@keyframes spark-flicker {
+  0%, 88%, 100% { opacity: 0; }
+  89%, 91% { opacity: 1; }
+  92% { opacity: 0; }
+  94%, 96% { opacity: 1; }
 }
 .term-header {
   display: flex; align-items: center; gap: 8px; padding: 12px 16px;
@@ -55,7 +105,9 @@ body {
 .role-tab {
   flex: 1; background: #0B1410; border: none; color: #5C7A6C; padding: 10px 4px;
   font-family: inherit; font-size: 14px; letter-spacing: 0.5px; cursor: pointer; font-weight: 600;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
 }
+.role-tab:active { transform: scale(0.97); }
 .role-tab.on { background: #123024; color: #39E68B; }
 
 .login-form { display: flex; flex-direction: column; gap: 10px; padding: 0 24px; }
@@ -72,8 +124,10 @@ body {
   margin-top: 4px; background: #123024; border: 1px solid #39E68B; color: #39E68B;
   padding: 11px; border-radius: 3px; font-family: inherit; font-size: 16px; font-weight: 700;
   letter-spacing: 1px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: background 0.18s ease, transform 0.12s ease, box-shadow 0.18s ease;
 }
-.term-submit:hover { background: #17402F; }
+.term-submit:hover { background: #17402F; box-shadow: 0 0 16px rgba(57,230,139,0.25); }
+.term-submit:active { transform: scale(0.97); }
 .login-footnote { text-align: center; font-size: 12.5px; color: #3A4E45; margin: 16px 24px 0; letter-spacing: 0.5px; }
 
 /* ---------------- LOGIN RAIL ANIMATION (train moving, KMRL style) ---------------- */
