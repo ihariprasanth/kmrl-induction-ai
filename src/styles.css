@@ -16,6 +16,28 @@ body {
   overflow-x: hidden;
 }
 
+/* ambient drifting particle field — futuristic HUD atmosphere */
+.scada-root::before {
+  content: "";
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 8% 22%, rgba(57,230,139,0.55), transparent),
+    radial-gradient(1.5px 1.5px at 24% 68%, rgba(57,230,139,0.4), transparent),
+    radial-gradient(1.5px 1.5px at 42% 14%, rgba(57,230,139,0.5), transparent),
+    radial-gradient(1.5px 1.5px at 61% 82%, rgba(57,230,139,0.35), transparent),
+    radial-gradient(1.5px 1.5px at 77% 38%, rgba(57,230,139,0.5), transparent),
+    radial-gradient(1.5px 1.5px at 89% 60%, rgba(57,230,139,0.4), transparent),
+    radial-gradient(1.5px 1.5px at 15% 90%, rgba(57,230,139,0.3), transparent),
+    radial-gradient(1.5px 1.5px at 95% 12%, rgba(57,230,139,0.45), transparent);
+  background-size: 100% 100%;
+  animation: particle-drift 22s ease-in-out infinite alternate;
+  opacity: 0.6;
+}
+@keyframes particle-drift {
+  0%   { transform: translate(0, 0); }
+  100% { transform: translate(-18px, 14px); }
+}
+
 .scanlines {
   position: fixed;
   inset: 0;
@@ -196,6 +218,11 @@ body {
   padding: 12px 22px; background: #0B1410; border-bottom: 1px solid #1F3B30; color: #39E68B;
 }
 .header-left { display: flex; align-items: center; gap: 10px; font-size: 16px; letter-spacing: 0.5px; font-weight: 600; }
+.header-tag { animation: header-glow-flicker 5s ease-in-out infinite; }
+@keyframes header-glow-flicker {
+  0%, 100% { text-shadow: 0 0 6px rgba(57,230,139,0.15); }
+  50% { text-shadow: 0 0 12px rgba(57,230,139,0.45); }
+}
 .header-clock { color: #5C7A6C; margin-left: 4px; }
 .header-right { display: flex; align-items: center; gap: 14px; }
 .user-tag { display: flex; align-items: center; gap: 6px; font-size: 15px; color: #D8F0E4; }
@@ -219,13 +246,31 @@ body {
 .led { width: 7px; height: 7px; border-radius: 50%; position: absolute; top: 10px; right: 10px; }
 .led.sm { position: static; margin-right: 5px; }
 
+.status-tile.hud {
+  overflow: hidden;
+  animation: tile-glow-pulse 3s ease-in-out infinite;
+}
+@keyframes tile-glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(0,0,0,0); }
+  50% { box-shadow: 0 0 16px var(--tile-glow, rgba(57,230,139,0.25)); }
+}
+.status-tile-sweep {
+  position: absolute; top: 0; bottom: 0; width: 40px; pointer-events: none;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.06), transparent);
+  animation: tile-sweep-move 3.6s linear infinite;
+}
+@keyframes tile-sweep-move { from { left: -40px; } to { left: 100%; } }
+
 .control-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px; }
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .tab {
   background: #0B1410; border: 1px solid #1F3B30; color: #5C7A6C; padding: 7px 12px;
   border-radius: 3px; font-family: inherit; font-size: 13px; letter-spacing: 0.5px; cursor: pointer; font-weight: 600;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
 }
-.tab.on { background: #123024; color: #39E68B; border-color: #39E68B; }
+.tab:hover { border-color: #39E68B; color: #A9C9BB; }
+.tab:active { transform: scale(0.96); }
+.tab.on { background: #123024; color: #39E68B; border-color: #39E68B; box-shadow: 0 0 10px rgba(57,230,139,0.2); }
 .search-field {
   display: flex; align-items: center; gap: 8px; background: #0B1410; border: 1px solid #1F3B30;
   border-radius: 3px; padding: 8px 12px; min-width: 220px;
@@ -243,8 +288,9 @@ body {
 .registry-row {
   background: transparent; border: none; border-bottom: 1px solid #12201A; color: #D8F0E4;
   font-family: inherit; font-size: 15px; cursor: pointer; text-align: left; width: 100%;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
-.registry-row:hover { background: #0F1C16; }
+.registry-row:hover { background: #0F1C16; box-shadow: inset 3px 0 0 #39E68B; }
 .registry-row:last-child { border-bottom: none; }
 .mono { font-family: 'IBM Plex Mono', monospace; color: #A9C9BB; font-size: 14px; }
 .row-name { font-weight: 600; color: #EAF7F0; }

@@ -874,6 +874,29 @@ function ChecklistModal({ title, subtitle, items, confirmLabel, onConfirm, onCan
 }
 
 /* =========================================================================
+   COUNT UP — animated number tween for HUD stat tiles
+========================================================================= */
+function CountUp({ value }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    let raf;
+    const start = performance.now();
+    const from = display;
+    const duration = 600;
+    const step = (now) => {
+      const p = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisplay(Math.round(from + (value - from) * eased));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  return <>{display}</>;
+}
+
+/* =========================================================================
    MINI BLIP — tiny animated train HUD indicator (fleet rows + bay grid)
 ========================================================================= */
 function MiniBlip({ color, mode = "still" }) {
@@ -2052,9 +2075,10 @@ function Console({ user, onLogout }) {
 
         <section className="status-panel">
           {Object.entries(SIGNAL).map(([key, sig]) => (
-            <div className="status-tile" key={key} style={{ borderColor: sig.color }}>
+            <div className="status-tile hud" key={key} style={{ borderColor: sig.color, "--tile-glow": sig.glow }}>
+              <span className="status-tile-sweep" />
               <span className="led" style={{ background: sig.color, boxShadow: `0 0 7px ${sig.color}` }} />
-              <div className="status-tile-value">{counts[key]}</div>
+              <div className="status-tile-value"><CountUp value={counts[key]} /></div>
               <div className="status-tile-label">{sig.label}</div>
             </div>
           ))}
