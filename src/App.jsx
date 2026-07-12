@@ -672,62 +672,113 @@ function TrainHero() {
           ))}
         </g>
 
-        {/* ---- moving wireframe EMU train unit (hero, large) ---- */}
+        {/* ---- moving wireframe EMU train unit — FULL 5-COACH RAKE ---- */}
         <g className="emu-unit" filter="url(#bpGlow)">
-          <g stroke="#39E68B" strokeWidth="2" fill="none" opacity="0.95">
-            {/* body shell wireframe */}
-            <path d="M0,600 L0,520 Q0,486 36,484 L470,484 Q504,484 526,505 L592,566
-                     Q601,575 601,588 L601,600 Z" />
-            {/* front windshield */}
-            <path d="M488,505 L538,510 Q566,528 582,566 L526,566 Q504,554 488,530 Z" />
-            {/* passenger window grid */}
-            {[...Array(6)].map((_, i) => (
-              <rect key={i} x={22 + i * 78} y="510" width="60" height="42" rx="6" />
-            ))}
-            {/* livery / dimension line */}
-            <line x1="0" y1="556" x2="601" y2="556" strokeDasharray="5 5" opacity="0.6" />
-            {/* pantograph */}
-            <path d="M235,484 L235,446 L268,428 L268,412 M235,484 L235,446 L202,428 L202,412" />
-            <rect x="188" y="406" width="94" height="7" rx="3" />
+
+          {/* ===== TRAILER COACHES 1-4 (plain wireframe coach bodies) ===== */}
+          {[0, 232, 464, 696].map((cx, idx) => (
+            <g key={idx}>
+              <rect x={cx} y="484" width="210" height="116" rx="14"
+                    fill="none" stroke="#39E68B" strokeWidth="2" opacity="0.95" />
+              {[0, 1, 2].map((w) => (
+                <rect key={w} x={cx + 12 + w * 66} y="510" width="54" height="42" rx="6"
+                      fill="none" stroke="#39E68B" strokeWidth="2" opacity="0.95" />
+              ))}
+              {/* sliding door boundary */}
+              <line x1={cx + 105} y1="486" x2={cx + 105} y2="598"
+                    stroke="#39E68B" strokeWidth="1.4" strokeDasharray="3 4" opacity="0.55" />
+              {/* livery / dimension line */}
+              <line x1={cx} y1="556" x2={cx + 210} y2="556"
+                    stroke="#39E68B" strokeWidth="2" strokeDasharray="5 5" opacity="0.6" />
+              <text x={cx + 105} y="474" textAnchor="middle"
+                    fontFamily="'IBM Plex Mono',monospace" fontSize="10" fill="#39E68B" opacity="0.6">
+                COACH {idx + 1}
+              </text>
+              {/* bogies */}
+              <g transform={`translate(${cx + 45},588)`}>
+                <rect x="-38" y="0" width="76" height="22" rx="5" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+                <circle className="wheel" cx="-20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+                <circle className="wheel" cx="20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+              </g>
+              <g transform={`translate(${cx + 165},588)`}>
+                <rect x="-38" y="0" width="76" height="22" rx="5" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+                <circle className="wheel" cx="-20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+                <circle className="wheel" cx="20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+              </g>
+              {/* coupler knuckle joining the next coach */}
+              <line x1={cx + 210} y1="556" x2={cx + 232} y2="556" stroke="#39E68B" strokeWidth="2.4" opacity="0.8" />
+              <circle className="bp-node" cx={cx + 221} cy="556" r="4" fill="#39E68B" />
+            </g>
+          ))}
+
+          {/* coupler joining COACH 4 to the driving cab */}
+          <line x1="906" y1="556" x2="928" y2="556" stroke="#39E68B" strokeWidth="2.4" opacity="0.8" />
+          <circle className="bp-node" cx="917" cy="556" r="4" fill="#39E68B" />
+
+          {/* ===== CAB COACH — COACH 5 / driving unit with nose + pantograph ===== */}
+          <g transform="translate(928,0)">
+            <g stroke="#39E68B" strokeWidth="2" fill="none" opacity="0.95">
+              {/* body shell wireframe */}
+              <path d="M0,600 L0,520 Q0,486 36,484 L470,484 Q504,484 526,505 L592,566
+                       Q601,575 601,588 L601,600 Z" />
+              {/* front windshield */}
+              <path d="M488,505 L538,510 Q566,528 582,566 L526,566 Q504,554 488,530 Z" />
+              {/* passenger window grid */}
+              {[...Array(6)].map((_, i) => (
+                <rect key={i} x={22 + i * 78} y="510" width="60" height="42" rx="6" />
+              ))}
+              {/* livery / dimension line */}
+              <line x1="0" y1="556" x2="601" y2="556" strokeDasharray="5 5" opacity="0.6" />
+              {/* pantograph */}
+              <path d="M235,484 L235,446 L268,428 L268,412 M235,484 L235,446 L202,428 L202,412" />
+              <rect x="188" y="406" width="94" height="7" rx="3" />
+            </g>
+
+            {/* joint / reference nodes */}
+            <circle cx="601" cy="556" r="4" fill="#39E68B" />
+            <circle cx="235" cy="412" r="4" fill="#39E68B" className="bp-node" />
+            <circle className="panto-spark" cx="235" cy="410" r="9" fill="#BFF7DD" />
+
+            <text x="300" y="474" textAnchor="middle"
+                  fontFamily="'IBM Plex Mono',monospace" fontSize="10" fill="#39E68B" opacity="0.6">
+              COACH 5 // CAB-A
+            </text>
+
+            {/* bogies */}
+            <g transform="translate(94,588)">
+              <rect x="-38" y="0" width="76" height="22" rx="5" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+              <circle className="wheel" cx="-20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+              <circle className="wheel" cx="20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+            </g>
+            <g transform="translate(470,588)">
+              <rect x="-38" y="0" width="76" height="22" rx="5" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+              <circle className="wheel" cx="-20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+              <circle className="wheel" cx="20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+            </g>
+
+            {/* headlight beam */}
+            <path className="headlight-beam" d="M601,570 L840,530 L840,610 Z" fill="url(#bpSweepGrad)" filter="url(#bpGlowSoft)" opacity="0.5" />
+
+            {/* leader-line callouts */}
+            <g fontFamily="'IBM Plex Mono',monospace" fontSize="13" fill="#39E68B" opacity="0.85">
+              <line x1="235" y1="406" x2="235" y2="368" stroke="#1F3B30" strokeWidth="1" />
+              <text x="150" y="360">PANTOGRAPH ASSY // OHE-750VDC</text>
+
+              <line x1="518" y1="503" x2="566" y2="460" stroke="#1F3B30" strokeWidth="1" />
+              <text x="470" y="450">CAB-A // TRACTION CTRL</text>
+
+              <line x1="94" y1="612" x2="94" y2="644" stroke="#1F3B30" strokeWidth="1" />
+              <text x="20" y="662">BOGIE-09</text>
+
+              <line x1="470" y1="612" x2="470" y2="644" stroke="#1F3B30" strokeWidth="1" />
+              <text x="426" y="662">BOGIE-10</text>
+            </g>
           </g>
 
-          {/* joint / reference nodes */}
-          <circle cx="0" cy="556" r="4" fill="#39E68B" />
-          <circle cx="601" cy="556" r="4" fill="#39E68B" />
-          <circle cx="235" cy="412" r="4" fill="#39E68B" className="bp-node" />
-          <circle className="panto-spark" cx="235" cy="410" r="9" fill="#BFF7DD" />
+          {/* rear taillight, at the very back of coach 1 */}
           <circle className="taillight" cx="6" cy="556" r="5" fill="#FF4D4D" />
-
-          {/* bogies (wireframe wheels) */}
-          <g transform="translate(94,588)">
-            <rect x="-38" y="0" width="76" height="22" rx="5" fill="none" stroke="#39E68B" strokeWidth="1.8" />
-            <circle className="wheel" cx="-20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
-            <circle className="wheel" cx="20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
-          </g>
-          <g transform="translate(470,588)">
-            <rect x="-38" y="0" width="76" height="22" rx="5" fill="none" stroke="#39E68B" strokeWidth="1.8" />
-            <circle className="wheel" cx="-20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
-            <circle className="wheel" cx="20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
-          </g>
-
-          {/* headlight beam */}
-          <path className="headlight-beam" d="M601,570 L840,530 L840,610 Z" fill="url(#bpSweepGrad)" filter="url(#bpGlowSoft)" opacity="0.5" />
-
-          {/* leader-line callouts */}
-          <g fontFamily="'IBM Plex Mono',monospace" fontSize="13" fill="#39E68B" opacity="0.85">
-            <line x1="235" y1="406" x2="235" y2="368" stroke="#1F3B30" strokeWidth="1" />
-            <text x="150" y="360">PANTOGRAPH ASSY // OHE-750VDC</text>
-
-            <line x1="518" y1="503" x2="566" y2="460" stroke="#1F3B30" strokeWidth="1" />
-            <text x="470" y="450">CAB-A // TRACTION CTRL</text>
-
-            <line x1="94" y1="612" x2="94" y2="644" stroke="#1F3B30" strokeWidth="1" />
-            <text x="20" y="662">BOGIE-01</text>
-
-            <line x1="470" y1="612" x2="470" y2="644" stroke="#1F3B30" strokeWidth="1" />
-            <text x="426" y="662">BOGIE-02</text>
-          </g>
         </g>
+
 
         {/* live schematic data readout */}
         <g fontFamily="'IBM Plex Mono',monospace" fontSize="14" fill="#39E68B" opacity="0.9">
