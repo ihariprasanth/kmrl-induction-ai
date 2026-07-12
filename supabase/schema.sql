@@ -21,10 +21,33 @@ create table public.app_users (
   created_at   timestamptz not null default now()
 );
 
--- Demo accounts — change these usernames/passwords before real use.
+-- =========================================================================
+-- RESTRICTED ACCESS — ONLY these 21 accounts exist. No public/demo/self
+-- sign-up accounts. 1 HOD + 20 Technicians (OPERATOR role).
+-- =========================================================================
 insert into public.app_users (username, password, name, role) values
-  ('hod',      'hod@123',      'Rajeev Menon (HOD)',        'HOD'),
-  ('operator', 'operator@123', 'Anoop K. (Service Operator)', 'OPERATOR');
+  ('kathir', 'kathir01', 'Kathir (HOD)', 'HOD'),
+
+  ('tech01', 'Metro125!',   'Arun Kumar',      'OPERATOR'),
+  ('tech02', 'Aluva328#',   'Bipin Das',       'OPERATOR'),
+  ('tech03', 'Metro792@',   'Cibi Chandran',   'OPERATOR'),
+  ('tech04', 'Transit532@', 'Deepak Nair',     'OPERATOR'),
+  ('tech05', 'Rail195#',    'Elango R',        'OPERATOR'),
+  ('tech06', 'Aluva617@',   'Farook Ali',      'OPERATOR'),
+  ('tech07', 'Bogie303$',   'Gokul Krishna',   'OPERATOR'),
+  ('tech08', 'Aluva559!',   'Hari Krishnan',   'OPERATOR'),
+  ('tech09', 'Rail877#',    'Ijas Rahman',     'OPERATOR'),
+  ('tech10', 'Coach448!',   'Jithin P',        'OPERATOR'),
+  ('tech11', 'Kochi320!',   'Kannan S',        'OPERATOR'),
+  ('tech12', 'Metro194$',   'Lakshman V',      'OPERATOR'),
+  ('tech13', 'Metro467!',   'Muthu Kumar',     'OPERATOR'),
+  ('tech14', 'Transit370@', 'Naveen Raj',      'OPERATOR'),
+  ('tech15', 'Depot649@',   'Om Prakash',      'OPERATOR'),
+  ('tech16', 'Coach180!',   'Prasad K',        'OPERATOR'),
+  ('tech17', 'Transit982!', 'Rajesh Menon',    'OPERATOR'),
+  ('tech18', 'Transit296@', 'Sanjay Varma',    'OPERATOR'),
+  ('tech19', 'Rail777#',    'Thomas Jacob',    'OPERATOR'),
+  ('tech20', 'Track181#',   'Vishnu Nair',     'OPERATOR');
 
 -- -------------------------------------------------------------------------
 -- 2. TRAINS — one row per KMRL trainset. Seeded at ZERO baseline; the app
@@ -138,3 +161,10 @@ alter publication supabase_realtime add table public.trains;
 -- this hackathon build simple (no server to hash against). Do not reuse
 -- real passwords. For anything beyond a demo, switch to Supabase Auth
 -- (auth.users + email/password sign-in) instead of this custom table.
+--
+-- NOTE on access: this app now ships with a fixed, restricted account list
+-- only — 1 HOD ("kathir") + 20 technicians ("tech01".."tech20"). There is
+-- no sign-up flow anywhere in the app; the ONLY way in is one of these 21
+-- rows in app_users. To rotate a password, run:
+--   update public.app_users set password = 'NEW_PASSWORD' where username = 'tech01';
+-- To add a technician, insert a new row with role = 'OPERATOR'.

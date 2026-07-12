@@ -582,7 +582,7 @@ function TrainHero() {
 
   return (
     <div className="train-hero blueprint">
-      <svg viewBox="0 0 1600 260" preserveAspectRatio="xMidYMax slice">
+      <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
         <defs>
           <pattern id="bpGridMinor" width="20" height="20" patternUnits="userSpaceOnUse">
             <path d="M20 0H0V20" fill="none" stroke="#123024" strokeWidth="0.5" />
@@ -592,8 +592,17 @@ function TrainHero() {
             <path d="M100 0H0V100" fill="none" stroke="#1B4A38" strokeWidth="1" />
           </pattern>
           <linearGradient id="bpSky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#061410" />
-            <stop offset="100%" stopColor="#05080B" />
+            <stop offset="0%" stopColor="#071812" />
+            <stop offset="55%" stopColor="#05100B" />
+            <stop offset="100%" stopColor="#04070A" />
+          </linearGradient>
+          <radialGradient id="bpVignette" cx="50%" cy="38%" r="75%">
+            <stop offset="0%" stopColor="#0C221A" stopOpacity="0" />
+            <stop offset="100%" stopColor="#020403" stopOpacity="0.85" />
+          </radialGradient>
+          <linearGradient id="bpSweepGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#39E68B" stopOpacity="0" />
+            <stop offset="100%" stopColor="#39E68B" stopOpacity="0.12" />
           </linearGradient>
           <filter id="bpGlow" x="-60%" y="-60%" width="220%" height="220%">
             <feGaussianBlur stdDeviation="3.2" result="blur" />
@@ -602,90 +611,133 @@ function TrainHero() {
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          <filter id="bpGlowSoft" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="5" />
+          </filter>
         </defs>
 
-        <rect x="0" y="0" width="1600" height="260" fill="url(#bpSky)" />
-        <rect x="0" y="0" width="1600" height="260" fill="url(#bpGridMajor)" />
+        {/* deep sky + grid */}
+        <rect x="0" y="0" width="1600" height="900" fill="url(#bpSky)" />
+        <rect x="0" y="0" width="1600" height="900" fill="url(#bpGridMajor)" opacity="0.55" />
 
-        {/* radar / oscilloscope sweep */}
-        <rect className="bp-sweep" x="0" y="0" width="140" height="260" fill="url(#bpSweepGrad)" />
-        <defs>
-          <linearGradient id="bpSweepGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#39E68B" stopOpacity="0" />
-            <stop offset="100%" stopColor="#39E68B" stopOpacity="0.14" />
-          </linearGradient>
-        </defs>
-
-        {/* HUD corner brackets */}
-        <g stroke="#39E68B" strokeWidth="2" fill="none" opacity="0.7">
-          <path d="M14,14 L14,40 M14,14 L40,14" />
-          <path d="M1586,14 L1586,40 M1586,14 L1560,14" />
-          <path d="M14,246 L14,220 M14,246 L40,246" />
-          <path d="M1586,246 L1586,220 M1586,246 L1560,246" />
+        {/* perspective tunnel converging lines — HUD depth cue */}
+        <g stroke="#1B4A38" strokeWidth="1" opacity="0.5">
+          <line x1="800" y1="380" x2="-200" y2="900" />
+          <line x1="800" y1="380" x2="500" y2="900" />
+          <line x1="800" y1="380" x2="1100" y2="900" />
+          <line x1="800" y1="380" x2="1800" y2="900" />
         </g>
 
-        {/* track centerline (schematic) */}
-        <line x1="0" y1="205" x2="1600" y2="205" stroke="#1F3B30" strokeWidth="1" strokeDasharray="2 6" />
+        {/* distant orbiting satellite / status rings, top corners */}
+        <g className="bp-ring" transform="translate(1480,90)" stroke="#39E68B" fill="none" opacity="0.5">
+          <circle r="26" strokeWidth="1" strokeDasharray="4 5" />
+          <circle r="14" strokeWidth="1" />
+        </g>
+        <g className="bp-ring" style={{ animationDuration: "14s" }} transform="translate(120,120)" stroke="#39E68B" fill="none" opacity="0.4">
+          <circle r="34" strokeWidth="1" strokeDasharray="3 7" />
+        </g>
 
-        {/* ---- moving wireframe EMU train unit ---- */}
+        {/* radar / oscilloscope sweep across full height */}
+        <rect className="bp-sweep" x="0" y="0" width="220" height="900" fill="url(#bpSweepGrad)" />
+
+        {/* HUD corner brackets — full frame */}
+        <g stroke="#39E68B" strokeWidth="2" fill="none" opacity="0.65">
+          <path d="M18,18 L18,54 M18,18 L54,18" />
+          <path d="M1582,18 L1582,54 M1582,18 L1546,18" />
+          <path d="M18,882 L18,846 M18,882 L54,882" />
+          <path d="M1582,882 L1582,846 M1582,882 L1546,882" />
+        </g>
+
+        {/* distant parallax train — smaller, slower, drifting opposite direction */}
+        <g className="emu-unit-far" opacity="0.35">
+          <g stroke="#39E68B" strokeWidth="1.1" fill="none">
+            <path d="M0,510 L0,478 Q0,464 15,463 L190,463 Q204,463 213,472 L239,497
+                     Q243,501 243,506 L243,510 Z" />
+            {[...Array(4)].map((_, i) => (
+              <rect key={i} x={10 + i * 42} y="474" width="30" height="16" rx="2" />
+            ))}
+          </g>
+        </g>
+
+        {/* main track bed with sleepers running the width */}
+        <g>
+          <line x1="0" y1="640" x2="1600" y2="640" stroke="#1F3B30" strokeWidth="1" strokeDasharray="2 6" />
+          <line x1="0" y1="648" x2="1600" y2="648" stroke="#12271F" strokeWidth="1" />
+          {[...Array(30)].map((_, i) => (
+            <rect key={i} className="sleeper" x={i * 56 - 20} y="642" width="26" height="7" fill="#183227" opacity="0.7" />
+          ))}
+          {/* running signal lights along the track */}
+          {[...Array(6)].map((_, i) => (
+            <circle key={i} className="track-pulse" style={{ animationDelay: `${i * 0.5}s` }} cx={i * 300 + 80} cy="640" r="3" fill="#39E68B" />
+          ))}
+        </g>
+
+        {/* ---- moving wireframe EMU train unit (hero, large) ---- */}
         <g className="emu-unit" filter="url(#bpGlow)">
-          <g stroke="#39E68B" strokeWidth="1.6" fill="none" opacity="0.9">
+          <g stroke="#39E68B" strokeWidth="2" fill="none" opacity="0.95">
             {/* body shell wireframe */}
-            <path d="M0,173 L0,118 Q0,96 24,95 L300,95 Q322,95 336,109 L378,150
-                     Q384,156 384,164 L384,173 Z" />
+            <path d="M0,600 L0,520 Q0,486 36,484 L470,484 Q504,484 526,505 L592,566
+                     Q601,575 601,588 L601,600 Z" />
             {/* front windshield */}
-            <path d="M312,109 L344,112 Q362,124 372,148 L336,148 Q322,140 312,124 Z" />
+            <path d="M488,505 L538,510 Q566,528 582,566 L526,566 Q504,554 488,530 Z" />
             {/* passenger window grid */}
-            {[...Array(5)].map((_, i) => (
-              <rect key={i} x={16 + i * 54} y="118" width="42" height="30" rx="4" />
+            {[...Array(6)].map((_, i) => (
+              <rect key={i} x={22 + i * 78} y="510" width="60" height="42" rx="6" />
             ))}
             {/* livery / dimension line */}
-            <line x1="0" y1="150" x2="384" y2="150" strokeDasharray="4 4" opacity="0.6" />
+            <line x1="0" y1="556" x2="601" y2="556" strokeDasharray="5 5" opacity="0.6" />
             {/* pantograph */}
-            <path d="M150,95 L150,72 L172,60 L172,50 M150,95 L150,72 L128,60 L128,50" />
-            <rect x="120" y="46" width="60" height="5" rx="2" />
+            <path d="M235,484 L235,446 L268,428 L268,412 M235,484 L235,446 L202,428 L202,412" />
+            <rect x="188" y="406" width="94" height="7" rx="3" />
           </g>
 
           {/* joint / reference nodes */}
-          <circle cx="0" cy="150" r="3" fill="#39E68B" />
-          <circle cx="384" cy="150" r="3" fill="#39E68B" />
-          <circle cx="150" cy="50" r="3" fill="#39E68B" className="bp-node" />
-          <circle className="panto-spark" cx="150" cy="49" r="6" fill="#BFF7DD" />
-          <circle className="taillight" cx="4" cy="150" r="3.5" fill="#FF4D4D" />
+          <circle cx="0" cy="556" r="4" fill="#39E68B" />
+          <circle cx="601" cy="556" r="4" fill="#39E68B" />
+          <circle cx="235" cy="412" r="4" fill="#39E68B" className="bp-node" />
+          <circle className="panto-spark" cx="235" cy="410" r="9" fill="#BFF7DD" />
+          <circle className="taillight" cx="6" cy="556" r="5" fill="#FF4D4D" />
 
           {/* bogies (wireframe wheels) */}
-          <g transform="translate(60,164)">
-            <rect x="-24" y="0" width="48" height="14" rx="3" fill="none" stroke="#39E68B" strokeWidth="1.4" />
-            <circle className="wheel" cx="-13" cy="14" r="10" fill="none" stroke="#39E68B" strokeWidth="1.4" />
-            <circle className="wheel" cx="13" cy="14" r="10" fill="none" stroke="#39E68B" strokeWidth="1.4" />
+          <g transform="translate(94,588)">
+            <rect x="-38" y="0" width="76" height="22" rx="5" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+            <circle className="wheel" cx="-20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+            <circle className="wheel" cx="20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
           </g>
-          <g transform="translate(300,164)">
-            <rect x="-24" y="0" width="48" height="14" rx="3" fill="none" stroke="#39E68B" strokeWidth="1.4" />
-            <circle className="wheel" cx="-13" cy="14" r="10" fill="none" stroke="#39E68B" strokeWidth="1.4" />
-            <circle className="wheel" cx="13" cy="14" r="10" fill="none" stroke="#39E68B" strokeWidth="1.4" />
+          <g transform="translate(470,588)">
+            <rect x="-38" y="0" width="76" height="22" rx="5" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+            <circle className="wheel" cx="-20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
+            <circle className="wheel" cx="20" cy="22" r="16" fill="none" stroke="#39E68B" strokeWidth="1.8" />
           </g>
+
+          {/* headlight beam */}
+          <path className="headlight-beam" d="M601,570 L840,530 L840,610 Z" fill="url(#bpSweepGrad)" filter="url(#bpGlowSoft)" opacity="0.5" />
 
           {/* leader-line callouts */}
-          <g fontFamily="'IBM Plex Mono',monospace" fontSize="9" fill="#39E68B" opacity="0.85">
-            <line x1="150" y1="46" x2="150" y2="20" stroke="#1F3B30" strokeWidth="1" />
-            <text x="98" y="16">PANTOGRAPH ASSY // OHE-750VDC</text>
+          <g fontFamily="'IBM Plex Mono',monospace" fontSize="13" fill="#39E68B" opacity="0.85">
+            <line x1="235" y1="406" x2="235" y2="368" stroke="#1F3B30" strokeWidth="1" />
+            <text x="150" y="360">PANTOGRAPH ASSY // OHE-750VDC</text>
 
-            <line x1="330" y1="108" x2="360" y2="80" stroke="#1F3B30" strokeWidth="1" />
-            <text x="300" y="74">CAB-A // TRACTION CTRL</text>
+            <line x1="518" y1="503" x2="566" y2="460" stroke="#1F3B30" strokeWidth="1" />
+            <text x="470" y="450">CAB-A // TRACTION CTRL</text>
 
-            <line x1="60" y1="178" x2="60" y2="200" stroke="#1F3B30" strokeWidth="1" />
-            <text x="8" y="212">BOGIE-01</text>
+            <line x1="94" y1="612" x2="94" y2="644" stroke="#1F3B30" strokeWidth="1" />
+            <text x="20" y="662">BOGIE-01</text>
 
-            <line x1="300" y1="178" x2="300" y2="200" stroke="#1F3B30" strokeWidth="1" />
-            <text x="272" y="212">BOGIE-02</text>
+            <line x1="470" y1="612" x2="470" y2="644" stroke="#1F3B30" strokeWidth="1" />
+            <text x="426" y="662">BOGIE-02</text>
           </g>
         </g>
 
         {/* live schematic data readout */}
-        <g fontFamily="'IBM Plex Mono',monospace" fontSize="11" fill="#39E68B" opacity="0.9">
-          <text x="20" y="230">UNIT KMRL-EMU // VEL {speed} KM/H // TRACTION {trac}%</text>
-          <text x="1240" y="230" textAnchor="end">POS X:{posX} // OHE 750VDC // STATUS NOMINAL</text>
+        <g fontFamily="'IBM Plex Mono',monospace" fontSize="14" fill="#39E68B" opacity="0.9">
+          <text x="26" y="700">UNIT KMRL-EMU // VEL {speed} KM/H // TRACTION {trac}%</text>
+          <text x="1574" y="700" textAnchor="end">POS X:{posX} // OHE 750VDC // STATUS NOMINAL</text>
+          <text x="26" y="60">SECTOR ALUVA–TRIPUNITHURA // FLEET-CTRL v2.1</text>
+          <text x="1574" y="60" textAnchor="end">{new Date().toLocaleDateString("en-IN")}</text>
         </g>
+
+        <rect x="0" y="0" width="1600" height="900" fill="url(#bpVignette)" />
       </svg>
       <div className="train-hero-fade" />
     </div>
@@ -778,7 +830,7 @@ function Login({ onLogin }) {
             onClick={() => chooseRole("OPERATOR")}
             onMouseEnter={sfx.hover}
           >
-            SERVICE / OPERATOR
+            TECHNICIAN
           </button>
         </div>
 
